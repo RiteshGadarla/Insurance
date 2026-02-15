@@ -54,7 +54,7 @@ async def create_policy(
         shutil.copyfileobj(file.file, buffer)
 
     # Call AI service for suggestions
-    suggested_docs = AIService.analyze_policy_pdf(file_path)
+    suggested_docs = await AIService.analyze_policy_pdf(file_path)
 
     new_policy = Policy(
         name=name,
