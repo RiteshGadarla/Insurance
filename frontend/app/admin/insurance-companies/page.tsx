@@ -23,18 +23,18 @@ export default function AdminInsuranceCompaniesPage() {
         admin_username: "", admin_email: "", admin_name: "", admin_password: "",
     });
 
-    const token = localStorage.getItem("token");
-
     useEffect(() => {
+        const token = localStorage.getItem("token");
         fetch(`${API}/admin/insurance-companies`, { headers: { Authorization: `Bearer ${token}` } })
             .then((r) => r.ok ? r.json() : [])
             .then(setCompanies)
             .catch(console.error)
             .finally(() => setLoading(false));
-    }, [token]);
+    }, []);
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
+        const token = localStorage.getItem("token");
         setCreateLoading(true);
         setMessage("");
         try {
@@ -61,6 +61,7 @@ export default function AdminInsuranceCompaniesPage() {
 
     const handleDelete = async (id: string) => {
         if (!confirm("Are you sure?")) return;
+        const token = localStorage.getItem("token");
         try {
             const res = await fetch(`${API}/admin/insurance-companies/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
             if (res.ok) {

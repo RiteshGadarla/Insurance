@@ -17,7 +17,9 @@ class Policy(MongoModel):
     connected_hospital_ids: List[str] = []
     required_documents: List[RequiredDocument] = []
     additional_notes: Optional[str] = None
-    policy_pdf_url: Optional[str] = None
+    policy_pdf_url: Optional[str] = None # Legacy
+    policy_pdf_path: Optional[str] = None
+    status: str = "DRAFT" # DRAFT, ACTIVE
     
     # Timestamps
     created_at: datetime = Field(default_factory=datetime.utcnow)

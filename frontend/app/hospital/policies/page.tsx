@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { ShieldCheck, FileText, PlusCircle, X, Plus, Trash2, Pencil } from "lucide-react";
+import { ShieldCheck, FileText, PlusCircle, X, Plus, Trash2, Pencil, Loader2 } from "lucide-react";
 import { fetchHospitalPolicies, createHospitalPolicy, updateHospitalPolicy } from "@/lib/api";
 
 interface RequiredDoc {
@@ -19,7 +20,7 @@ interface RequiredDoc {
 
 const emptyDoc = (): RequiredDoc => ({ document_name: "", description: "", notes: "", mandatory: true });
 
-export default function HospitalPoliciesPage() {
+function HospitalPoliciesContent() {
     const [policies, setPolicies] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -58,6 +59,13 @@ export default function HospitalPoliciesPage() {
         setSuccess("");
     };
 
+    const searchParams = useSearchParams();
+    useEffect(() => {
+        if (searchParams.get("action") === "create") {
+            setShowForm(true);
+        }
+    }, [searchParams]);
+
     const openCreateForm = () => { resetForm(); setShowForm(true); };
 
     const openEditForm = (policy: any) => {
@@ -89,32 +97,33 @@ export default function HospitalPoliciesPage() {
         setRequiredDocs(updated);
     };
 
+    const [policyFile, setPolicyFile] = useState<File | null>(null);
+    const router = useRouter(); // Need to import useRouter
+
+    // ... inside handleSubmit
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
         setSuccess("");
 
         if (!policyName.trim()) { setError("Policy name is required"); return; }
-        const validDocs = requiredDocs.filter(d => d.document_name.trim());
-        if (validDocs.length === 0) { setError("At least one required document must be defined"); return; }
+        if (!editingId && !policyFile) { setError("Please upload a policy PDF"); return; }
 
         setSubmitting(true);
         try {
-            const payload = {
-                name: policyName.trim(),
-                required_documents: validDocs,
-                additional_notes: additionalNotes.trim() || undefined,
-                policy_pdf_url: policyPdfUrl.trim() || undefined,
-            };
-
             if (editingId) {
-                await updateHospitalPolicy(editingId, payload);
+                // Keep old logic for edit if needed, or unify
+                const validDocs = requiredDocs.filter(d => d.document_name.trim());
+                await updateHospitalPolicy(editingId, { name: policyName, required_documents: validDocs });
                 setSuccess("Policy updated successfully!");
+                setTimeout(() => { closeForm(); loadData(); }, 1000);
             } else {
-                await createHospitalPolicy(payload);
-                setSuccess("Internal policy created successfully!");
+                const result = await createHospitalPolicy(policyName, policyFile!);
+                setSuccess("Policy uploaded! Redirecting to review...");
+                setTimeout(() => {
+                    router.push(`/hospital/policies/${result.id || result._id}/review`);
+                }, 1500);
             }
-            setTimeout(() => { closeForm(); loadData(); }, 1000);
         } catch (err: any) {
             setError(err.message || "Operation failed");
         } finally {
@@ -154,58 +163,63 @@ export default function HospitalPoliciesPage() {
                                 <Input value={policyName} onChange={e => setPolicyName(e.target.value)} placeholder="e.g. Internal Trauma Protocol" className="mt-1" />
                             </div>
 
-                            <div>
-                                <div className="flex items-center justify-between mb-2">
-                                    <Label>Required Documents *</Label>
-                                    <Button type="button" variant="outline" size="sm" onClick={addDocument} className="gap-1 text-xs"><Plus className="h-3 w-3" /> Add Document</Button>
+                            {!editingId && (
+                                <div className="p-6 border-2 border-dashed rounded-lg bg-gray-50/50 hover:bg-white hover:border-emerald-300 transition-all">
+                                    <Label className="flex flex-col items-center justify-center cursor-pointer gap-2">
+                                        <FileText className="h-8 w-8 text-gray-400" />
+                                        <span className="text-sm font-medium text-gray-600">
+                                            {policyFile ? policyFile.name : "Upload Policy PDF (AI Analysis)"}
+                                        </span>
+                                        <span className="text-xs text-gray-400">PDF documents only, max 10MB</span>
+                                        <input
+                                            type="file"
+                                            className="hidden"
+                                            accept="application/pdf"
+                                            onChange={(e) => setPolicyFile(e.target.files?.[0] || null)}
+                                        />
+                                    </Label>
                                 </div>
-                                <div className="space-y-3">
-                                    {requiredDocs.map((doc, idx) => (
-                                        <div key={idx} className="border rounded-md p-3 bg-gray-50 relative">
-                                            {requiredDocs.length > 1 && (
-                                                <button type="button" onClick={() => removeDocument(idx)} className="absolute top-2 right-2 text-red-400 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
-                                            )}
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <div>
-                                                    <Label className="text-xs">Document Name *</Label>
-                                                    <Input value={doc.document_name} onChange={e => updateDocument(idx, "document_name", e.target.value)} placeholder="e.g. Discharge Summary" className="mt-1" />
-                                                </div>
-                                                <div>
-                                                    <Label className="text-xs">Description</Label>
-                                                    <Input value={doc.description} onChange={e => updateDocument(idx, "description", e.target.value)} placeholder="Brief description" className="mt-1" />
+                            )}
+
+                            {editingId && (
+                                <div>
+                                    <div className="flex items-center justify-between mb-2">
+                                        <Label>Required Documents *</Label>
+                                        <Button type="button" variant="outline" size="sm" onClick={addDocument} className="gap-1 text-xs"><Plus className="h-3 w-3" /> Add Document</Button>
+                                    </div>
+                                    <div className="space-y-3">
+                                        {requiredDocs.map((doc, idx) => (
+                                            <div key={idx} className="border rounded-md p-3 bg-gray-50 relative">
+                                                {requiredDocs.length > 1 && (
+                                                    <button type="button" onClick={() => removeDocument(idx)} className="absolute top-2 right-2 text-red-400 hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
+                                                )}
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div>
+                                                        <Label className="text-xs">Document Name *</Label>
+                                                        <Input value={doc.document_name} onChange={e => updateDocument(idx, "document_name", e.target.value)} placeholder="e.g. Discharge Summary" className="mt-1" />
+                                                    </div>
+                                                    <div>
+                                                        <Label className="text-xs">Description</Label>
+                                                        <Input value={doc.description} onChange={e => updateDocument(idx, "description", e.target.value)} placeholder="Brief description" className="mt-1" />
+                                                    </div>
                                                 </div>
                                             </div>
-                                            <div className="grid grid-cols-2 gap-3 mt-2">
-                                                <div>
-                                                    <Label className="text-xs">Notes</Label>
-                                                    <Input value={doc.notes} onChange={e => updateDocument(idx, "notes", e.target.value)} placeholder="Optional notes" className="mt-1" />
-                                                </div>
-                                                <div className="flex items-end gap-2 pb-1">
-                                                    <label className="flex items-center gap-2 cursor-pointer">
-                                                        <input type="checkbox" checked={doc.mandatory} onChange={e => updateDocument(idx, "mandatory", e.target.checked)} className="rounded border-gray-300" />
-                                                        <span className="text-sm">Mandatory</span>
-                                                    </label>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
-
-                            <div>
-                                <Label>Additional Notes</Label>
-                                <Textarea value={additionalNotes} onChange={e => setAdditionalNotes(e.target.value)} placeholder="Any additional information..." className="mt-1" />
-                            </div>
-
-                            <div>
-                                <Label>Policy PDF Link</Label>
-                                <Input value={policyPdfUrl} onChange={e => setPolicyPdfUrl(e.target.value)} placeholder="https://example.com/policy.pdf" className="mt-1" />
-                            </div>
+                            )}
 
                             <div className="flex justify-end gap-3 pt-2">
-                                <Button type="button" variant="outline" onClick={closeForm}>Cancel</Button>
-                                <Button type="submit" disabled={submitting} className="bg-emerald-600 hover:bg-emerald-700 text-white">
-                                    {submitting ? (editingId ? "Saving..." : "Creating...") : (editingId ? "Save Changes" : "Create Policy")}
+                                <Button type="button" variant="outline" onClick={closeForm} disabled={submitting}>Cancel</Button>
+                                <Button type="submit" disabled={submitting} className="bg-emerald-600 hover:bg-emerald-700 text-white min-w-[200px]">
+                                    {submitting ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            {editingId ? "Saving..." : "AI Analysis..."}
+                                        </>
+                                    ) : (
+                                        editingId ? "Save Changes" : "Create & Analyze Policy"
+                                    )}
                                 </Button>
                             </div>
                         </form>
@@ -279,5 +293,13 @@ export default function HospitalPoliciesPage() {
                 )}
             </div>
         </div>
+    );
+}
+
+export default function HospitalPoliciesPage() {
+    return (
+        <Suspense fallback={<div className="p-10 flex justify-center"><Loader2 className="animate-spin h-8 w-8 text-emerald-600" /></div>}>
+            <HospitalPoliciesContent />
+        </Suspense>
     );
 }

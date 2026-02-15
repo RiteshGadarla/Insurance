@@ -69,3 +69,21 @@ async def get_my_policies(user: User = Depends(get_current_user)):
     company_id = user.insurance_company_id or str(user.id)
     policies = await collection.find({"insurance_company_id": company_id}).to_list(100)
     return policies
+@router.get("/{policy_id}", response_model=Policy)
+async def get_policy(policy_id: str, user: User = Depends(get_current_user)):
+    try:
+        pid = ObjectId(policy_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid Policy ID")
+
+    collection = get_policy_collection()
+    policy = await collection.find_one({"_id": pid})
+    if not policy:
+        raise HTTPException(status_code=404, detail="Policy not found")
+    
+    # Simple check: Is hospital linked to the insurer? 
+    # Or is it an internal hospital policy?
+    # For now, allow viewing if policy exists for logged in users.
+    
+    policy["id"] = str(policy["_id"])
+    return policy

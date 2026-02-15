@@ -7,6 +7,7 @@ from app.models.hospital import Hospital
 from app.core.database import db
 from typing import List, Optional
 from pydantic import BaseModel
+from app.services.ai_service import AIService
 import shutil
 import os
 from bson import ObjectId
@@ -37,27 +38,33 @@ class ScoreRequest(BaseModel):
     notes: Optional[str] = None
 
 @router.post("/policies", response_model=Policy, dependencies=[Depends(require_role([UserRole.HOSPITAL]))])
-async def create_custom_policy(request: PolicyCreateRequest, current_user: User = Depends(get_current_user)):
+async def create_custom_policy(
+    name: str = Form(...),
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user)
+):
     hospital_id = current_user.hospital_id
     if not hospital_id:
         raise HTTPException(status_code=400, detail="User not linked to a hospital")
 
-    req_docs = [
-        RequiredDocument(
-            document_name=d.document_name,
-            description=d.description,
-            notes=d.notes,
-            mandatory=d.mandatory
-        ) for d in request.required_documents
-    ]
+    # Create upload directory if it doesn't exist
+    upload_dir = "uploads/policies"
+    os.makedirs(upload_dir, exist_ok=True)
+    
+    file_path = os.path.join(upload_dir, f"{ObjectId()}_{file.filename}")
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    # Call AI service for suggestions
+    suggested_docs = AIService.analyze_policy_pdf(file_path)
 
     new_policy = Policy(
-        name=request.name,
+        name=name,
         hospital_id=hospital_id,
         connected_hospital_ids=[hospital_id],
-        required_documents=req_docs,
-        additional_notes=request.additional_notes,
-        policy_pdf_url=request.policy_pdf_url,
+        policy_pdf_path=file_path,
+        required_documents=suggested_docs,
+        status="DRAFT"
     )
     
     result = await db.db["policies"].insert_one(new_policy.model_dump(by_alias=True, exclude={"id"}))
@@ -110,6 +117,35 @@ async def update_hospital_policy(policy_id: str, request: PolicyUpdateRequest, c
 
     if update_data:
         await db.db["policies"].update_one({"_id": pid}, {"$set": update_data})
+
+@router.put("/policies/{policy_id}/finalize", response_model=Policy, dependencies=[Depends(require_role([UserRole.HOSPITAL]))])
+async def finalize_hospital_policy(policy_id: str, request: List[RequiredDocumentInput], current_user: User = Depends(get_current_user)):
+    hospital_id = current_user.hospital_id
+    if not hospital_id:
+        raise HTTPException(status_code=400, detail="User not linked to a hospital")
+
+    try:
+        pid = ObjectId(policy_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid Policy ID")
+
+    req_docs = [
+        RequiredDocument(
+            document_name=d.document_name,
+            description=d.description,
+            notes=d.notes,
+            mandatory=d.mandatory
+        ) for d in request
+    ]
+
+    await db.db["policies"].update_one(
+        {"_id": pid, "hospital_id": hospital_id},
+        {"$set": {
+            "required_documents": [d.model_dump() for d in req_docs],
+            "status": "ACTIVE",
+            "updated_at": datetime.utcnow()
+        }}
+    )
 
     updated = await db.db["policies"].find_one({"_id": pid})
     if updated:

@@ -31,7 +31,23 @@ class PyObjectId(str):
 class MongoModel(BaseModel):
     id: Optional[PyObjectId] = Field(alias="_id", default=None)
 
-    class Config:
-        populate_by_name = True
-        arbitrary_types_allowed = True
-        json_encoders = {ObjectId: str}
+    model_config = {
+        "populate_by_name": True,
+        "arbitrary_types_allowed": True,
+        "json_encoders": {ObjectId: str},
+        "json_schema_extra": {
+            "example": {
+                "id": "507f1f77bcf86cd799439011",
+            }
+        }
+    }
+
+    def model_dump(self, **kwargs):
+        # Ensure 'id' is mapped to '_id' for mongo if needed, 
+        # but also ensure 'id' exists in the output if requested.
+        d = super().model_dump(**kwargs)
+        if "_id" in d and "id" not in d:
+            d["id"] = str(d["_id"])
+        elif "id" in d and "_id" not in d:
+            d["_id"] = ObjectId(d["id"]) if ObjectId.is_valid(d["id"]) else d["id"]
+        return d
