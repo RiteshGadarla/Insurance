@@ -12,7 +12,9 @@ class Claim(MongoModel):
     # Core Info
     patient_name: str
     age: int
-    hospital_id: str
+    hospital_id: Optional[str] = None
+    diagnosis: str
+    treatment_plan: Optional[str] = None
     
     # Policy Linking
     policy_id: Optional[str] = None # Nullable for Reimbursement if manual/not linked to digital policy yet

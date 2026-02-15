@@ -11,3 +11,6 @@ def get_claim_collection():
 
 def get_document_collection():
     return db.db.documents
+
+def get_insurance_company_collection():
+    return db.db.insurance_companies

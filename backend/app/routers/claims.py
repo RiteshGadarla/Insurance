@@ -47,6 +47,33 @@ async def create_claim(claim: Claim, user: User = Depends(get_current_user)):
     claim.hospital_id = user.hospital_id or str(user.id)
     claim.status = "DRAFT"
     
+    # Override hospital_id with the authenticated user's ID for security
+    claim.hospital_id = user.hospital_id or str(user.id)
+
+    # Validate Policy and Linkage
+    if claim.policy_type == "CASHLESS" and claim.policy_id:
+        policy_collection = get_policy_collection()
+        try:
+            policy_oid = ObjectId(claim.policy_id)
+        except:
+             raise HTTPException(status_code=400, detail="Invalid Policy ID")
+
+        policy = await policy_collection.find_one({"_id": policy_oid})
+        if not policy:
+            raise HTTPException(status_code=404, detail="Policy not found")
+            
+        company_id = policy.get("insurance_company_id")
+        if company_id:
+            from app.core.collections import get_insurance_company_collection
+            company_collection = get_insurance_company_collection()
+            company = await company_collection.find_one({"_id": ObjectId(company_id)})
+            
+            if not company:
+                 raise HTTPException(status_code=404, detail="Insurance Company for policy not found")
+                 
+            if claim.hospital_id not in company.get("connected_hospital_ids", []):
+                raise HTTPException(status_code=400, detail="Hospital is not linked to this Insurance Company for Cashless claims")
+
     collection = get_claim_collection()
     new_claim = await collection.insert_one(claim.model_dump(by_alias=True, exclude={"id"}))
     created_claim = await collection.find_one({"_id": new_claim.inserted_id})
@@ -165,16 +192,33 @@ async def upload_document(
         {"$push": {"uploaded_documents": doc_entry}}
     )
     
-    # Trigger AI Processing (Simplified: Run immediately)
-    # Fetch updated claim
-    updated_claim = await collection.find_one({"_id": oid})
-    
+    return await collection.find_one({"_id": oid})
+
+@router.post("/{claim_id}/analyze", response_model=Claim)
+async def analyze_claim(claim_id: str, user: User = Depends(get_current_user)):
+    if user.role != UserRole.HOSPITAL:
+         raise HTTPException(status_code=403, detail="Only hospitals can trigger analysis")
+
+    collection = get_claim_collection()
+    try:
+        oid = ObjectId(claim_id)
+    except:
+        raise HTTPException(status_code=400, detail="Invalid Claim ID")
+        
+    claim = await collection.find_one({"_id": oid})
+    if not claim:
+        raise HTTPException(status_code=404, detail="Claim not found")
+        
+    # Verify ownership
+    if claim.get("hospital_id") != (user.hospital_id or str(user.id)):
+        raise HTTPException(status_code=403, detail="Not authorized")
+
     # Fetch Policy
     policy_collection = get_policy_collection()
-    policy = await policy_collection.find_one({"_id": ObjectId(updated_claim["policy_id"])}) if updated_claim.get("policy_id") else {}
-    
+    policy = await policy_collection.find_one({"_id": ObjectId(claim["policy_id"])}) if claim.get("policy_id") else {}
+
     # Run AI Analysis
-    ai_result = AIService.analyze_claim(updated_claim, policy, updated_claim.get("uploaded_documents", []))
+    ai_result = AIService.analyze_claim(claim, policy, claim.get("uploaded_documents", []))
     
     # Update Claim with AI results
     await collection.update_one(
