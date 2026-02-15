@@ -10,14 +10,15 @@ import { cn } from "@/lib/utils"
 // I will just use standard React props for now to speed up.
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-    variant?: 'default' | 'outline' | 'ghost'
-    size?: 'default' | 'sm' | 'lg'
+    variant?: 'default' | 'outline' | 'ghost' | 'destructive'
+    size?: 'default' | 'sm' | 'lg' | 'icon'
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     ({ className, variant = 'default', size = 'default', ...props }, ref) => {
         const variants = {
             default: "bg-black text-white hover:bg-gray-800",
+            destructive: "bg-red-600 text-white hover:bg-red-700",
             outline: "border border-black bg-transparent hover:bg-gray-100 text-black",
             ghost: "hover:bg-gray-100 hover:text-black text-black",
         }
@@ -26,6 +27,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
             default: "h-10 px-4 py-2",
             sm: "h-9 rounded-md px-3",
             lg: "h-11 rounded-md px-8",
+            icon: "h-10 w-10 p-0",
         }
 
         return (

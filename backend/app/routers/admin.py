@@ -51,7 +51,7 @@ async def create_hospital(request: HospitalCreateRequest):
         admin_user_id=user_id
     )
     hospital_result = await db.db["hospitals"].insert_one(new_hospital.model_dump(by_alias=True, exclude={"id"}))
-    new_hospital.id = hospital_result.inserted_id
+    new_hospital.id = str(hospital_result.inserted_id)
     
     await db.db["users"].update_one({"_id": user_result.inserted_id}, {"$set": {"hospital_id": str(new_hospital.id)}})
     
@@ -99,7 +99,7 @@ async def create_insurance_company(request: InsuranceCompanyCreateRequest):
         admin_user_id=user_id
     )
     company_result = await db.db["insurance_companies"].insert_one(new_company.model_dump(by_alias=True, exclude={"id"}))
-    new_company.id = company_result.inserted_id
+    new_company.id = str(company_result.inserted_id)
     
     await db.db["users"].update_one({"_id": user_result.inserted_id}, {"$set": {"insurance_company_id": str(new_company.id)}})
     

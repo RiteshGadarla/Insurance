@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import AdminView from "@/components/dashboard/AdminView";
-import HospitalView from "@/components/dashboard/HospitalView";
-import InsuranceView from "@/components/dashboard/InsuranceView";
+import { AdminView } from "@/components/dashboard/AdminView";
+import { HospitalView } from "@/components/dashboard/HospitalView";
+import { InsuranceView } from "@/components/dashboard/InsuranceView";
 import { LogOut, Loader2 } from "lucide-react";
 
 export default function DashboardPage() {

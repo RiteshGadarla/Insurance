@@ -1,168 +1,382 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { FileText, CheckCircle, XCircle, AlertCircle, PlusCircle, X, Plus, Trash2 } from "lucide-react";
+import { createInsurancePolicy, fetchAllHospitals } from "@/lib/api";
 
-export default function InsuranceView() {
-    const [policies, setPolicies] = useState([]);
-    const [hospitals, setHospitals] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState("policies");
+interface RequiredDoc {
+    document_name: string;
+    description: string;
+    notes: string;
+    mandatory: boolean;
+}
 
-    // Policy Form
-    const [policyData, setPolicyData] = useState({
-        name: "", coverage_details: "", required_documents: ""
+export function InsuranceView() {
+    const [stats, setStats] = useState({
+        toReview: 0,
+        approved: 0,
+        rejected: 0,
+        policiesCount: 0
     });
+    const [loading, setLoading] = useState(true);
+    const [showForm, setShowForm] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState("");
+    const [success, setSuccess] = useState("");
 
-    // Link Hospital State
-    const [selectedPolicy, setSelectedPolicy] = useState<string | null>(null);
+    // Form state
+    const [policyName, setPolicyName] = useState("");
     const [selectedHospitals, setSelectedHospitals] = useState<string[]>([]);
+    const [requiredDocs, setRequiredDocs] = useState<RequiredDoc[]>([
+        { document_name: "", description: "", notes: "", mandatory: true }
+    ]);
+    const [additionalNotes, setAdditionalNotes] = useState("");
+    const [policyPdfUrl, setPolicyPdfUrl] = useState("");
+    const [hospitals, setHospitals] = useState<any[]>([]);
 
     useEffect(() => {
+        const fetchData = async () => {
+            const token = localStorage.getItem("token");
+            if (!token) return;
+
+            try {
+                const claimsRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/claims/`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                const claims = claimsRes.ok ? await claimsRes.json() : [];
+
+                const policiesRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/insurance/policies`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                const policies = policiesRes.ok ? await policiesRes.json() : [];
+
+                const toReview = claims.filter((c: any) => c.status === "REVIEW_READY").length;
+                const approved = claims.filter((c: any) => c.status === "APPROVED").length;
+                const rejected = claims.filter((c: any) => c.status === "REJECTED").length;
+
+                setStats({
+                    toReview,
+                    approved,
+                    rejected,
+                    policiesCount: policies.length
+                });
+            } catch (error) {
+                console.error("Failed to fetch dashboard data", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
         fetchData();
     }, []);
 
-    const fetchData = async () => {
-        setLoading(true);
+    const loadHospitals = async () => {
         try {
-            const token = localStorage.getItem("token");
-            const headers = { Authorization: `Bearer ${token}` };
-
-            const [pRes, hRes] = await Promise.all([
-                fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/insurance/policies`, { headers }),
-                fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/insurance/hospitals`, { headers })
-            ]);
-
-            if (pRes.ok) setPolicies(await pRes.json());
-            if (hRes.ok) setHospitals(await hRes.json());
-        } catch (error) {
-            console.error("Fetch failed", error);
-        } finally {
-            setLoading(false);
+            const data = await fetchAllHospitals();
+            setHospitals(data);
+        } catch (e) {
+            console.error("Failed to load hospitals", e);
         }
     };
 
-    const handleCreatePolicy = async (e: React.FormEvent) => {
+    const openForm = () => {
+        setShowForm(true);
+        setError("");
+        setSuccess("");
+        loadHospitals();
+    };
+
+    const closeForm = () => {
+        setShowForm(false);
+        setPolicyName("");
+        setSelectedHospitals([]);
+        setRequiredDocs([{ document_name: "", description: "", notes: "", mandatory: true }]);
+        setAdditionalNotes("");
+        setPolicyPdfUrl("");
+        setError("");
+    };
+
+    const addDocument = () => {
+        setRequiredDocs([...requiredDocs, { document_name: "", description: "", notes: "", mandatory: true }]);
+    };
+
+    const removeDocument = (idx: number) => {
+        setRequiredDocs(requiredDocs.filter((_, i) => i !== idx));
+    };
+
+    const updateDocument = (idx: number, field: keyof RequiredDoc, value: any) => {
+        const updated = [...requiredDocs];
+        (updated[idx] as any)[field] = value;
+        setRequiredDocs(updated);
+    };
+
+    const toggleHospital = (id: string) => {
+        setSelectedHospitals(prev =>
+            prev.includes(id) ? prev.filter(h => h !== id) : [...prev, id]
+        );
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        const token = localStorage.getItem("token");
-        try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/insurance/policies`, {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    ...policyData,
-                    required_documents: policyData.required_documents.split(",").map(s => s.trim())
-                })
-            });
+        setError("");
+        setSuccess("");
 
-            if (res.ok) {
-                alert("Policy created!");
-                setPolicyData({ name: "", coverage_details: "", required_documents: "" });
-                fetchData();
-            } else {
-                const err = await res.json();
-                alert(`Error: ${err.detail}`);
-            }
-        } catch (error) {
-            console.error("Create Policy failed", error);
+        if (!policyName.trim()) {
+            setError("Policy name is required");
+            return;
+        }
+
+        const validDocs = requiredDocs.filter(d => d.document_name.trim());
+        if (validDocs.length === 0) {
+            setError("At least one required document must be defined");
+            return;
+        }
+
+        setSubmitting(true);
+        try {
+            await createInsurancePolicy({
+                name: policyName.trim(),
+                connected_hospital_ids: selectedHospitals,
+                required_documents: validDocs,
+                additional_notes: additionalNotes.trim() || undefined,
+                policy_pdf_url: policyPdfUrl.trim() || undefined,
+            });
+            setSuccess("Policy created successfully!");
+            setStats(prev => ({ ...prev, policiesCount: prev.policiesCount + 1 }));
+            setTimeout(() => closeForm(), 1500);
+        } catch (err: any) {
+            setError(err.message || "Failed to create policy");
+        } finally {
+            setSubmitting(false);
         }
     };
 
-    const handleLinkHospitals = async () => {
-        if (!selectedPolicy) return;
-        const token = localStorage.getItem("token");
-        try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/insurance/policies/${selectedPolicy}/hospitals`, {
-                method: "PUT",
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(selectedHospitals)
-            });
-            if (res.ok) {
-                alert("Hospitals linked!");
-                setSelectedPolicy(null);
-                setSelectedHospitals([]);
-                fetchData();
-            }
-        } catch (error) {
-            console.error("Link failed", error);
-        }
-    };
-
-    if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>;
+    if (loading) return <div className="p-6">Loading dashboard data...</div>;
 
     return (
         <div className="space-y-6">
-            <h2 className="text-2xl font-bold">Insurance Company Dashboard</h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div>
-                    <h3 className="text-xl font-semibold mb-4">Create Policy</h3>
-                    <form onSubmit={handleCreatePolicy} className="space-y-4 bg-gray-50 p-6 rounded shadow">
-                        <input placeholder="Policy Name" value={policyData.name} onChange={e => setPolicyData({ ...policyData, name: e.target.value })} className="w-full p-2 border rounded" required />
-                        <textarea placeholder="Coverage Details" value={policyData.coverage_details} onChange={e => setPolicyData({ ...policyData, coverage_details: e.target.value })} className="w-full p-2 border rounded" required />
-                        <input placeholder="Required Documents (comma separated)" value={policyData.required_documents} onChange={e => setPolicyData({ ...policyData, required_documents: e.target.value })} className="w-full p-2 border rounded" required />
-                        <button type="submit" className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700">Create Policy</button>
-                    </form>
-                </div>
-
-                <div>
-                    <h3 className="text-xl font-semibold mb-4">Your Policies</h3>
-                    <div className="space-y-4">
-                        {policies.map((p: any) => (
-                            <div key={p._id || p.id} className="p-4 border rounded shadow bg-white">
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <p className="font-bold">{p.name}</p>
-                                        <p className="text-sm text-gray-600">{p.coverage_details}</p>
-                                        <p className="text-xs text-gray-500 mt-1">Linked Hospitals: {p.eligible_hospital_ids?.length || 0}</p>
-                                    </div>
-                                    <button
-                                        onClick={() => {
-                                            setSelectedPolicy(p._id || p.id);
-                                            setSelectedHospitals(p.eligible_hospital_ids || []);
-                                        }}
-                                        className="text-blue-600 text-sm hover:underline"
-                                    >
-                                        Manage Links
-                                    </button>
-                                </div>
-
-                                {selectedPolicy === (p._id || p.id) && (
-                                    <div className="mt-4 p-2 bg-gray-50 rounded border">
-                                        <h4 className="font-semibold text-sm mb-2">Link Hospitals using ID</h4>
-                                        <div className="max-h-40 overflow-y-auto space-y-1">
-                                            {hospitals.map((h: any) => (
-                                                <label key={h._id || h.id} className="flex items-center space-x-2 text-sm">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={selectedHospitals.includes(h._id || h.id)}
-                                                        onChange={e => {
-                                                            const hid = h._id || h.id;
-                                                            if (e.target.checked) setSelectedHospitals([...selectedHospitals, hid]);
-                                                            else setSelectedHospitals(selectedHospitals.filter(id => id !== hid));
-                                                        }}
-                                                    />
-                                                    <span>{h.name}</span>
-                                                </label>
-                                            ))}
-                                        </div>
-                                        <div className="mt-2 flex space-x-2">
-                                            <button onClick={handleLinkHospitals} className="bg-green-600 text-white px-3 py-1 rounded text-sm">Save</button>
-                                            <button onClick={() => setSelectedPolicy(null)} className="bg-gray-400 text-white px-3 py-1 rounded text-sm">Cancel</button>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                </div>
+            <div className="flex items-center justify-between">
+                <h1 className="text-2xl font-bold tracking-tight">Insurance Dashboard</h1>
+                <Button onClick={openForm} className="gap-2 bg-blue-600 hover:bg-blue-700 text-white">
+                    <PlusCircle className="h-4 w-4" />
+                    Add Policy
+                </Button>
             </div>
+
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Claims to Review</CardTitle>
+                        <AlertCircle className="h-4 w-4 text-yellow-600" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{stats.toReview}</div>
+                        <p className="text-xs text-muted-foreground">Requires attention</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Approved</CardTitle>
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{stats.approved}</div>
+                        <p className="text-xs text-muted-foreground">Total approved claims</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Rejected</CardTitle>
+                        <XCircle className="h-4 w-4 text-red-600" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{stats.rejected}</div>
+                        <p className="text-xs text-muted-foreground">Total rejected claims</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Active Policies</CardTitle>
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{stats.policiesCount}</div>
+                        <p className="text-xs text-muted-foreground">Policies managed</p>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* Add Policy Form */}
+            {showForm && (
+                <Card className="border-2 border-blue-200 shadow-lg">
+                    <CardHeader className="flex flex-row items-center justify-between">
+                        <CardTitle className="text-lg">Create New Policy</CardTitle>
+                        <button onClick={closeForm} className="text-gray-400 hover:text-gray-600">
+                            <X className="h-5 w-5" />
+                        </button>
+                    </CardHeader>
+                    <CardContent>
+                        <form onSubmit={handleSubmit} className="space-y-5">
+                            {error && (
+                                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
+                                    {error}
+                                </div>
+                            )}
+                            {success && (
+                                <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md text-sm">
+                                    {success}
+                                </div>
+                            )}
+
+                            <div>
+                                <Label htmlFor="policyName">Policy Name *</Label>
+                                <Input
+                                    id="policyName"
+                                    value={policyName}
+                                    onChange={e => setPolicyName(e.target.value)}
+                                    placeholder="e.g. Gold Health Plan"
+                                    className="mt-1"
+                                />
+                            </div>
+
+                            <div>
+                                <Label>Connected Hospitals</Label>
+                                <div className="mt-2 border rounded-md p-3 max-h-40 overflow-y-auto space-y-2">
+                                    {hospitals.length === 0 && (
+                                        <p className="text-sm text-gray-400">No hospitals available</p>
+                                    )}
+                                    {hospitals.map((h: any) => {
+                                        const hid = h.id || h._id;
+                                        return (
+                                            <label key={hid} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedHospitals.includes(hid)}
+                                                    onChange={() => toggleHospital(hid)}
+                                                    className="rounded border-gray-300"
+                                                />
+                                                <span className="text-sm">{h.name}</span>
+                                                <span className="text-xs text-gray-400 ml-auto">{h.address}</span>
+                                            </label>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            <div>
+                                <div className="flex items-center justify-between mb-2">
+                                    <Label>Required Documents *</Label>
+                                    <Button type="button" variant="outline" size="sm" onClick={addDocument} className="gap-1 text-xs">
+                                        <Plus className="h-3 w-3" /> Add Document
+                                    </Button>
+                                </div>
+                                <div className="space-y-3">
+                                    {requiredDocs.map((doc, idx) => (
+                                        <div key={idx} className="border rounded-md p-3 bg-gray-50 relative">
+                                            {requiredDocs.length > 1 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeDocument(idx)}
+                                                    className="absolute top-2 right-2 text-red-400 hover:text-red-600"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </button>
+                                            )}
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div>
+                                                    <Label className="text-xs">Document Name *</Label>
+                                                    <Input
+                                                        value={doc.document_name}
+                                                        onChange={e => updateDocument(idx, "document_name", e.target.value)}
+                                                        placeholder="e.g. Diagnosis Report"
+                                                        className="mt-1"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <Label className="text-xs">Description</Label>
+                                                    <Input
+                                                        value={doc.description}
+                                                        onChange={e => updateDocument(idx, "description", e.target.value)}
+                                                        placeholder="Brief description"
+                                                        className="mt-1"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3 mt-2">
+                                                <div>
+                                                    <Label className="text-xs">Notes</Label>
+                                                    <Input
+                                                        value={doc.notes}
+                                                        onChange={e => updateDocument(idx, "notes", e.target.value)}
+                                                        placeholder="Optional notes"
+                                                        className="mt-1"
+                                                    />
+                                                </div>
+                                                <div className="flex items-end gap-2 pb-1">
+                                                    <label className="flex items-center gap-2 cursor-pointer">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={doc.mandatory}
+                                                            onChange={e => updateDocument(idx, "mandatory", e.target.checked)}
+                                                            className="rounded border-gray-300"
+                                                        />
+                                                        <span className="text-sm">Mandatory</span>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div>
+                                <Label htmlFor="additionalNotes">Additional Notes</Label>
+                                <Textarea
+                                    id="additionalNotes"
+                                    value={additionalNotes}
+                                    onChange={e => setAdditionalNotes(e.target.value)}
+                                    placeholder="Any additional information about this policy..."
+                                    className="mt-1"
+                                />
+                            </div>
+
+                            <div>
+                                <Label htmlFor="pdfUrl">Policy PDF Link</Label>
+                                <Input
+                                    id="pdfUrl"
+                                    value={policyPdfUrl}
+                                    onChange={e => setPolicyPdfUrl(e.target.value)}
+                                    placeholder="https://example.com/policy.pdf"
+                                    className="mt-1"
+                                />
+                            </div>
+
+                            <div className="flex justify-end gap-3 pt-2">
+                                <Button type="button" variant="outline" onClick={closeForm}>Cancel</Button>
+                                <Button type="submit" disabled={submitting} className="bg-blue-600 hover:bg-blue-700 text-white">
+                                    {submitting ? "Creating..." : "Create Policy"}
+                                </Button>
+                            </div>
+                        </form>
+                    </CardContent>
+                </Card>
+            )}
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Recent Claims</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="text-sm text-gray-500">
+                        {stats.toReview > 0 ? "You have pending claims to review." : "No pending claims."}
+                    </div>
+                </CardContent>
+            </Card>
         </div>
     );
 }

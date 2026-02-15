@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, Body
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
 from app.core.deps import require_role, get_current_user
 from app.models.user import User, UserRole
-from app.models.policy import Policy
+from app.models.policy import Policy, RequiredDocument
 from app.models.patient_file import PatientFile, FileStatus
 from app.models.hospital import Hospital
 from app.core.database import db
@@ -10,13 +10,27 @@ from pydantic import BaseModel
 import shutil
 import os
 from bson import ObjectId
+from datetime import datetime
 
 router = APIRouter()
 
+class RequiredDocumentInput(BaseModel):
+    document_name: str
+    description: str = ""
+    notes: Optional[str] = None
+    mandatory: bool = True
+
 class PolicyCreateRequest(BaseModel):
     name: str
-    coverage_details: str
-    required_documents: List[str]
+    required_documents: List[RequiredDocumentInput] = []
+    additional_notes: Optional[str] = None
+    policy_pdf_url: Optional[str] = None
+
+class PolicyUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    required_documents: Optional[List[RequiredDocumentInput]] = None
+    additional_notes: Optional[str] = None
+    policy_pdf_url: Optional[str] = None
 
 class ScoreRequest(BaseModel):
     score: int
@@ -27,23 +41,30 @@ async def create_custom_policy(request: PolicyCreateRequest, current_user: User 
     hospital_id = current_user.hospital_id
     if not hospital_id:
         raise HTTPException(status_code=400, detail="User not linked to a hospital")
-    
-    # Get hospital name for insurer field
-    hospital = await db.db["hospitals"].find_one({"_id": ObjectId(hospital_id)})
-    insurer_name = hospital["name"] if hospital else current_user.name
+
+    req_docs = [
+        RequiredDocument(
+            document_name=d.document_name,
+            description=d.description,
+            notes=d.notes,
+            mandatory=d.mandatory
+        ) for d in request.required_documents
+    ]
 
     new_policy = Policy(
         name=request.name,
         hospital_id=hospital_id,
-        coverage_details=request.coverage_details,
-        required_documents=request.required_documents,
-        insurer=insurer_name,
-        eligible_hospital_ids=[hospital_id] # Automatically eligible for own hospital
+        connected_hospital_ids=[hospital_id],
+        required_documents=req_docs,
+        additional_notes=request.additional_notes,
+        policy_pdf_url=request.policy_pdf_url,
     )
     
     result = await db.db["policies"].insert_one(new_policy.model_dump(by_alias=True, exclude={"id"}))
-    new_policy.id = result.inserted_id
-    return new_policy
+    created = await db.db["policies"].find_one({"_id": result.inserted_id})
+    if created:
+        created["id"] = str(created["_id"])
+    return created
 
 @router.get("/policies", response_model=List[Policy], dependencies=[Depends(require_role([UserRole.HOSPITAL]))])
 async def list_available_policies(current_user: User = Depends(get_current_user)):
@@ -51,14 +72,49 @@ async def list_available_policies(current_user: User = Depends(get_current_user)
     if not hospital_id:
         raise HTTPException(status_code=400, detail="User not linked to a hospital")
     
-    # Policies eligible for this hospital OR owned by this hospital
     policies = await db.db["policies"].find({
         "$or": [
-            {"eligible_hospital_ids": hospital_id},
+            {"connected_hospital_ids": hospital_id},
             {"hospital_id": hospital_id}
         ]
     }).to_list(100)
     return policies
+
+@router.put("/policies/{policy_id}", response_model=Policy, dependencies=[Depends(require_role([UserRole.HOSPITAL]))])
+async def update_hospital_policy(policy_id: str, request: PolicyUpdateRequest, current_user: User = Depends(get_current_user)):
+    hospital_id = current_user.hospital_id
+    if not hospital_id:
+        raise HTTPException(status_code=400, detail="User not linked to a hospital")
+
+    try:
+        pid = ObjectId(policy_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid Policy ID")
+
+    # Only allow editing policies owned by this hospital
+    policy = await db.db["policies"].find_one({"_id": pid, "hospital_id": hospital_id})
+    if not policy:
+        raise HTTPException(status_code=404, detail="Policy not found or not owned by your hospital")
+
+    update_data = {}
+    if request.name is not None:
+        update_data["name"] = request.name
+    if request.required_documents is not None:
+        update_data["required_documents"] = [d.model_dump() for d in request.required_documents]
+    if request.additional_notes is not None:
+        update_data["additional_notes"] = request.additional_notes
+    if request.policy_pdf_url is not None:
+        update_data["policy_pdf_url"] = request.policy_pdf_url
+
+    update_data["updated_at"] = datetime.utcnow()
+
+    if update_data:
+        await db.db["policies"].update_one({"_id": pid}, {"$set": update_data})
+
+    updated = await db.db["policies"].find_one({"_id": pid})
+    if updated:
+        updated["id"] = str(updated["_id"])
+    return updated
 
 @router.post("/upload", response_model=PatientFile, dependencies=[Depends(require_role([UserRole.HOSPITAL]))])
 async def upload_file(
@@ -79,19 +135,18 @@ async def upload_file(
         policy = await db.db["policies"].find_one({
             "_id": pid, 
             "$or": [
-                {"eligible_hospital_ids": hospital_id},
+                {"connected_hospital_ids": hospital_id},
                 {"hospital_id": hospital_id}
             ]
         })
-    except:
+    except Exception:
         policy = None
 
     if not policy:
-         # Try string match just in case
         policy = await db.db["policies"].find_one({
             "_id": policy_id,
              "$or": [
-                {"eligible_hospital_ids": hospital_id},
+                {"connected_hospital_ids": hospital_id},
                 {"hospital_id": hospital_id}
             ]
         })
@@ -133,10 +188,9 @@ async def assign_score(file_id: str, request: ScoreRequest, current_user: User =
 
     try:
         fid = ObjectId(file_id)
-    except:
+    except Exception:
         raise HTTPException(status_code=400, detail="Invalid File ID")
 
-    # Ensure file belongs to this hospital
     file = await db.db["patient_files"].find_one({"_id": fid, "hospital_id": hospital_id})
     if not file:
          raise HTTPException(status_code=404, detail="File not found")
