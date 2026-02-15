@@ -67,7 +67,7 @@ class AIService:
                 
                 # Parse JSON
                 suggestions_data = json.loads(response_text)
-                # print(suggestions_data)
+                print(suggestions_data)
                 suggestions = []
                 for item in suggestions_data:
                     suggestions.append(
