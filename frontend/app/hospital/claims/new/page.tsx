@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,29 +46,91 @@ export default function NewClaimPage() {
         fetchPolicies();
     }, []);
 
-    // Step 1: Create Draft Claim
+    // Load claim if editing
+    // Load claim if editing
+    const searchParams = useSearchParams();
+    const editClaimId = searchParams.get('claimId');
+
+    useEffect(() => {
+        if (!editClaimId) return;
+
+        const loadClaim = async () => {
+            setLoading(true);
+            const token = localStorage.getItem("token");
+            try {
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/claims/${editClaimId}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    const claim = data.claim;
+                    setClaimId(claim.id || claim._id);
+                    setCurrentClaim(claim);
+                    setPolicyDetails(data.policy);
+
+                    // Populate form
+                    setPatientName(claim.patient_name);
+                    setAge(claim.age.toString());
+                    setDiagnosis(claim.diagnosis);
+                    setTreatment(claim.treatment_plan);
+                    setClaimType(claim.policy_type);
+                    setSelectedPolicyId(claim.policy_id || "");
+
+                    // Determine step
+                    if (claim.status === "DRAFT") {
+                        // Always start at step 1 for drafts to allow reviewing/editing details
+                        setStep(1);
+                    } else {
+                        setStep(3); // View analysis/status
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to load claim", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        loadClaim();
+    }, [editClaimId]);
+
+    // Step 1: Create or Update Draft Claim
     const handleCreateDraft = async () => {
         setLoading(true);
         const token = localStorage.getItem("token");
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/claims/`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    patient_name: patientName,
-                    age: parseInt(age) || 0,
-                    diagnosis: diagnosis,
-                    treatment_plan: treatment,
-                    policy_type: claimType,
-                    policy_id: claimType === "CASHLESS" ? selectedPolicyId : undefined
-                    // status defaults to DRAFT
-                })
+            const body = JSON.stringify({
+                patient_name: patientName,
+                age: parseInt(age) || 0,
+                diagnosis: diagnosis,
+                treatment_plan: treatment,
+                policy_type: claimType,
+                policy_id: claimType === "CASHLESS" ? selectedPolicyId : undefined
             });
 
-            if (!res.ok) throw new Error("Failed to create claim");
+            let res;
+            if (claimId) {
+                // Update existing claim
+                res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/claims/${claimId}`, {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`
+                    },
+                    body: body
+                });
+            } else {
+                // Create new claim
+                res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/claims/`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`
+                    },
+                    body: body
+                });
+            }
+
+            if (!res.ok) throw new Error("Failed to save claim");
 
             const data = await res.json();
             setClaimId(data.id || data._id);
@@ -76,11 +138,7 @@ export default function NewClaimPage() {
 
             // Fetch policy details if selected
             if (claimType === "CASHLESS" && selectedPolicyId) {
-                const policyRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/policies/`, { // Ideally get by ID
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                // Since we don't have get_policy_by_id exposed directly publically maybe, we filter from list or use the claim details
-                /* Actually get_claim_details returns policy. Let's use that. */
+                // Fetch updated policy details if needed
                 const detailRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/claims/${data.id || data._id}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
@@ -91,7 +149,8 @@ export default function NewClaimPage() {
 
             setStep(2); // Move to Upload
         } catch (err) {
-            alert("Error creating claim");
+            console.error(err);
+            alert("Error saving claim");
         } finally {
             setLoading(false);
         }
@@ -128,7 +187,7 @@ export default function NewClaimPage() {
         setLoading(true);
         const token = localStorage.getItem("token");
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/claims/${claimId}/analyze`, {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/claims/${claimId}/verify`, {
                 method: "POST",
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -342,7 +401,7 @@ export default function NewClaimPage() {
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            {!currentClaim.ai_score ? (
+                            {currentClaim.ai_score === undefined || currentClaim.ai_score === null ? (
                                 <div className="text-center py-6">
                                     <p className="text-gray-500 mb-4">Click below to analyze the claim and documents.</p>
                                     <Button onClick={handleAnalyze} disabled={loading}>
@@ -369,13 +428,33 @@ export default function NewClaimPage() {
 
                                     <div>
                                         <h4 className="text-sm font-semibold mb-2">Document Feedback</h4>
-                                        {currentClaim.ai_document_feedback?.map((fb: any, i: number) => (
-                                            <div key={i} className="text-xs flex gap-2 items-center mb-1">
-                                                <FileText className="h-3 w-3" />
-                                                <span className="font-medium">{fb.document_name}:</span>
-                                                <span>{fb.feedback_note}</span>
-                                            </div>
-                                        ))}
+                                        <div className="border rounded-md overflow-hidden">
+                                            <table className="w-full text-sm text-left">
+                                                <thead className="bg-gray-100 text-gray-600 font-medium border-b">
+                                                    <tr>
+                                                        <th className="px-3 py-2">Document</th>
+                                                        <th className="px-3 py-2">Feedback</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y">
+                                                    {currentClaim.ai_document_feedback?.map((fb: any, i: number) => (
+                                                        <tr key={i} className="hover:bg-gray-50">
+                                                            <td className="px-3 py-2 font-medium flex items-center gap-2">
+                                                                <FileText className="h-3 w-3 text-gray-500" />
+                                                                {fb.document_name}
+                                                            </td>
+                                                            <td className="px-3 py-2 text-gray-600">{fb.feedback_note}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    <div className="flex justify-center mt-4">
+                                        <Button variant="outline" onClick={handleAnalyze} disabled={loading}>
+                                            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                            Re-verify Claim with AI
+                                        </Button>
                                     </div>
                                 </>
                             )}
