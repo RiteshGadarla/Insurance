@@ -31,64 +31,88 @@ class AIService:
             logger.warning("Failed to extract text from the document. Returning default suggestions.")
             return AIService._get_fallback_suggestions()
 
-        logger.info("Text extraction successful. Sending to AI for analysis...")
+        logger.info(f"Text extraction successful. Document length: {len(extracted_text)} characters.")
 
-        # 2. Prompt the AI
-        prompt = f"""
-        You are an expert insurance policy analyzer. 
-        Analyze the following insurance policy text and identify the required documents for processing a claim based on the terms and conditions mentioned.
+        # Chunking strategy: Split text into chunks of approx 50,000 characters (~10-12k tokens)
+        # This keeps us safe within limits while providing enough context per chunk.
+        CHUNK_SIZE = 50000
+        chunks = [extracted_text[i : i + CHUNK_SIZE] for i in range(0, len(extracted_text), CHUNK_SIZE)]
         
-        Extracted Policy Text:
-        \"\"\"
-        {extracted_text[:10000]}  # Limit to 10k chars to avoid token limits if necessary.
-        \"\"\"
+        logger.info(f"Splitting document into {len(chunks)} chunks for AI analysis.")
         
-        Based on the text above, list the specific documents required from the policyholder/hospital to process a claim.
-        Return the result ONLY as a JSON array of objects, where each object has the following keys:
-        - "document_name": The name of the document (e.g., "Discharge Summary", "Final Hospital Bill").
-        - "description": A brief description of what this document is (e.g., "Detailed summary of hospitalization").
-        - "mandatory": Boolean, true if it seems mandatory, false otherwise.
-        
-        Do not include any markdown formatting like ```json or ```. Just the raw JSON array.
-        """
+        all_suggestions = []
+        seen_document_names = set()
 
-        try:
-            # Run LLM call in threadpool as well
-            response_text = await run_in_threadpool(llm_helper.generate_response, prompt)
+        for index, chunk in enumerate(chunks):
+            # 2. Prompt the AI for each chunk
+            logger.info(f"Processing chunk {index + 1}/{len(chunks)}...")
             
-            if response_text:
-                # Clean up response if it contains markdown code blocks
-                if "```json" in response_text:
-                    response_text = response_text.replace("```json", "").replace("```", "")
-                elif "```" in response_text:
-                    response_text = response_text.replace("```", "")
-                
-                response_text = response_text.strip()
-                
-                # Parse JSON
-                suggestions_data = json.loads(response_text)
-                # print(suggestions_data)
-                suggestions = []
-                for item in suggestions_data:
-                    suggestions.append(
-                        RequiredDocument(
-                            document_name=item.get("document_name", "Unknown Document"),
-                            description=item.get("description", "No description provided"),
-                            notes="AI suggested based on policy analysis",
-                            mandatory=item.get("mandatory", True)
-                        )
-                    )
-                
-                logger.info(f"AI suggested {len(suggestions)} documents.")
-                return suggestions
+            prompt = f"""
+            You are an expert insurance policy analyzer. 
+            Analyze the following PART {index + 1} of {len(chunks)} of an insurance policy text and identify the required documents for processing a claim based on the terms and conditions mentioned in this specific section.
+            
+            PARTIAL Policy Text ({index + 1}/{len(chunks)}):
+            \"\"\"
+            {chunk}
+            \"\"\"
+            
+            Based on the text above, list the specific documents required from the policyholder/hospital to process a claim.
+            If no specific documents are mentioned in this section, return an empty array [].
+            
+            Return the result ONLY as a JSON array of objects, where each object has the following keys:
+            - "document_name": The name of the document (e.g., "Discharge Summary", "Final Hospital Bill"). Use standard, concise names.
+            - "description": A brief description of what this document is (e.g., "Detailed summary of hospitalization").
+            - "mandatory": Boolean, true if it seems mandatory, false otherwise.
+            "notes": Include only essential additional instructions for the hospital staff, if explicitly mentioned. Do not indicate whether the document is mandatory or optional. If no specific notes are provided, return an empty string ("").            
+           Do not include any markdown formatting like ```json or ```. Just the raw JSON array.
+            """
 
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse AI response as JSON: {e}")
-            logger.debug(f"Raw AI response: {response_text if 'response_text' in locals() else 'None'}")
-        except Exception as e:
-            logger.error(f"Error during AI analysis: {e}")
+            try:
+                # Run LLM call in threadpool as well
+                response_text = await run_in_threadpool(llm_helper.generate_response, prompt)
+                
+                if response_text:
+                    # Clean up response if it contains markdown code blocks
+                    if "```json" in response_text:
+                        response_text = response_text.replace("```json", "").replace("```", "")
+                    elif "```" in response_text:
+                        response_text = response_text.replace("```", "")
+                    
+                    response_text = response_text.strip()
+                    # print(response_text)
+                    # Parse JSON
+                    if not response_text:
+                        continue 
+                        
+                    suggestions_data = json.loads(response_text)
+                    
+                    for item in suggestions_data:
+                        doc_name = item.get("document_name", "Unknown Document").strip()
+                        
+                        # Simple deduplication by name (case-insensitive)
+                        if doc_name.lower() not in seen_document_names:
+                            all_suggestions.append(
+                                RequiredDocument(
+                                    document_name=doc_name,
+                                    description=item.get("description", "No description provided"),
+                                    notes=item.get("notes", ""),
+                                    mandatory=item.get("mandatory", True)
+                                )
+                            )
+                            seen_document_names.add(doc_name.lower())
+            
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse AI response as JSON for chunk {index + 1}: {e}")
+                logger.debug(f"Raw AI response: {response_text if 'response_text' in locals() else 'None'}")
+            except Exception as e:
+                logger.error(f"Error during AI analysis for chunk {index + 1}: {e}")
 
-        # Fallback if something goes wrong
+        if all_suggestions:
+            logger.info(f"AI analysis complete. Found {len(all_suggestions)} unique required documents.")
+            return all_suggestions
+        
+        # Fallback if no suggestions found across all chunks
+        logger.warning("No documents identified by AI across any chunks.")
         return AIService._get_fallback_suggestions()
 
     @staticmethod
@@ -108,7 +132,7 @@ class AIService:
             RequiredDocument(
                 document_name=name,
                 description=desc,
-                notes="Default suggestion (AI analysis failed)",
+                notes="",
                 mandatory=True
             ) for name, desc in default_docs
         ]
