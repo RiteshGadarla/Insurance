@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Activity, FileText, DollarSign, Clock, AlertCircle, PlusCircle } from "lucide-react";
+import { Activity, FileText, DollarSign, Clock, AlertCircle, PlusCircle, TrendingUp, CheckCircle2 } from "lucide-react";
 
 export function HospitalView() {
     const router = useRouter();
@@ -56,78 +56,181 @@ export function HospitalView() {
         router.push("/hospital/policies?action=create");
     };
 
-    if (loading) return <div className="p-6">Loading dashboard data...</div>;
+    if (loading) {
+        return (
+            <div className="flex justify-center items-center py-16">
+                <div className="text-center">
+                    <div className="w-12 h-12 rounded-full border-4 border-blue-200 border-t-blue-600 animate-spin mx-auto mb-4"></div>
+                    <p className="text-slate-600 font-medium">Loading dashboard data...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-bold tracking-tight">Hospital Dashboard</h1>
-                <Button onClick={handleCreatePolicy} className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white">
-                    <PlusCircle className="h-4 w-4" />
+        <div className="space-y-8">
+            {/* Header */}
+            <div className="flex items-end justify-between">
+                <div>
+                    <h1 className="text-4xl font-bold text-slate-900 mb-2">Hospital Dashboard</h1>
+                    <p className="text-slate-600">Monitor claims and manage insurance policies</p>
+                </div>
+                <Button 
+                    onClick={handleCreatePolicy} 
+                    className="gap-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-semibold px-6 py-3 rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
+                >
+                    <PlusCircle className="h-5 w-5" />
                     Create Internal Policy
                 </Button>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Active Claims</CardTitle>
-                        <Activity className="h-4 w-4 text-muted-foreground" />
+            {/* Stats Grid */}
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+                {/* Active Claims Card */}
+                <Card className="border-0 shadow-md hover:shadow-lg transition-all duration-300 bg-white group">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                        <CardTitle className="text-sm font-semibold text-slate-700">Active Claims</CardTitle>
+                        <div className="p-3 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg shadow-md group-hover:scale-110 transition-transform">
+                            <Activity className="h-5 w-5 text-white" />
+                        </div>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{stats.activeClaims}</div>
-                        <p className="text-xs text-muted-foreground">Total claims filed</p>
+                        <div className="text-3xl font-bold text-blue-600">{stats.activeClaims}</div>
+                        <p className="text-xs text-slate-600 mt-2">Total claims filed</p>
                     </CardContent>
                 </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Pending Review</CardTitle>
-                        <Clock className="h-4 w-4 text-muted-foreground" />
+
+                {/* Pending Review Card */}
+                <Card className="border-0 shadow-md hover:shadow-lg transition-all duration-300 bg-white group">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                        <CardTitle className="text-sm font-semibold text-slate-700">Pending Review</CardTitle>
+                        <div className="p-3 bg-gradient-to-br from-amber-500 to-orange-500 rounded-lg shadow-md group-hover:scale-110 transition-transform">
+                            <Clock className="h-5 w-5 text-white" />
+                        </div>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{stats.pendingReview}</div>
-                        <p className="text-xs text-muted-foreground">Waiting for insurance</p>
+                        <div className="text-3xl font-bold text-amber-600">{stats.pendingReview}</div>
+                        <p className="text-xs text-slate-600 mt-2">Waiting for insurance</p>
                     </CardContent>
                 </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Est. Verified Amount</CardTitle>
-                        <DollarSign className="h-4 w-4 text-muted-foreground" />
+
+                {/* Est. Verified Amount Card */}
+                <Card className="border-0 shadow-md hover:shadow-lg transition-all duration-300 bg-white group">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                        <CardTitle className="text-sm font-semibold text-slate-700">Est. Verified Amount</CardTitle>
+                        <div className="p-3 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg shadow-md group-hover:scale-110 transition-transform">
+                            <DollarSign className="h-5 w-5 text-white" />
+                        </div>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">${stats.verifiedAmount.toLocaleString()}</div>
-                        <p className="text-xs text-muted-foreground">AI Estimated Total</p>
+                        <div className="text-3xl font-bold text-green-600">${stats.verifiedAmount.toLocaleString()}</div>
+                        <p className="text-xs text-slate-600 mt-2">AI Estimated Total</p>
                     </CardContent>
                 </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Available Policies</CardTitle>
-                        <FileText className="h-4 w-4 text-muted-foreground" />
+
+                {/* Available Policies Card */}
+                <Card className="border-0 shadow-md hover:shadow-lg transition-all duration-300 bg-white group">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                        <CardTitle className="text-sm font-semibold text-slate-700">Available Policies</CardTitle>
+                        <div className="p-3 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg shadow-md group-hover:scale-110 transition-transform">
+                            <FileText className="h-5 w-5 text-white" />
+                        </div>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{stats.policiesCount}</div>
-                        <p className="text-xs text-muted-foreground">Active insurance protocols</p>
+                        <div className="text-3xl font-bold text-purple-600">{stats.policiesCount}</div>
+                        <p className="text-xs text-slate-600 mt-2">Active insurance protocols</p>
                     </CardContent>
                 </Card>
             </div>
 
-            {stats.activeClaims === 0 && (
-                <div className="bg-blue-50 p-4 rounded-md border border-blue-100 text-blue-800 flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4" />
-                    <div>No claims yet. Start by creating a new claim from the sidebar.</div>
+            {/* Alert or Info Section */}
+            {stats.activeClaims === 0 ? (
+                <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-200 rounded-lg p-6 flex items-start gap-4">
+                    <div className="p-3 bg-blue-100 rounded-lg flex-shrink-0">
+                        <AlertCircle className="h-6 w-6 text-blue-600" />
+                    </div>
+                    <div>
+                        <h3 className="font-semibold text-blue-900 mb-1">No Claims Yet</h3>
+                        <p className="text-sm text-blue-700">Start by creating a new claim from the sidebar to begin submitting insurance claims.</p>
+                    </div>
+                </div>
+            ) : (
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-lg p-6 flex items-start gap-4">
+                    <div className="p-3 bg-green-100 rounded-lg flex-shrink-0">
+                        <CheckCircle2 className="h-6 w-6 text-green-600" />
+                    </div>
+                    <div>
+                        <h3 className="font-semibold text-green-900 mb-1">System Active</h3>
+                        <p className="text-sm text-green-700">Your claims are being processed. Monitor the status from the sidebar and manage your policies as needed.</p>
+                    </div>
                 </div>
             )}
 
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-                <Card className="col-span-4">
+            {/* Quick Actions Section */}
+            <div className="grid gap-6 md:grid-cols-2">
+                {/* Quick Actions Card */}
+                <Card className="border-0 shadow-md bg-gradient-to-br from-blue-50 to-cyan-50">
                     <CardHeader>
-                        <CardTitle>Quick Actions</CardTitle>
+                        <CardTitle className="text-lg text-slate-900 flex items-center gap-2">
+                            <TrendingUp className="h-5 w-5 text-blue-600" />
+                            Quick Actions
+                        </CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-2">
-                        <p className="text-sm text-gray-500">Use the sidebar to manage claims and policies, or create a new internal policy above.</p>
+                    <CardContent className="space-y-3">
+                        <div className="flex items-start gap-3">
+                            <div className="w-2 h-2 bg-blue-600 rounded-full mt-2 flex-shrink-0"></div>
+                            <p className="text-sm text-slate-700">Use the sidebar to submit new claims and track their status</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                            <div className="w-2 h-2 bg-blue-600 rounded-full mt-2 flex-shrink-0"></div>
+                            <p className="text-sm text-slate-700">Create internal policies to manage insurance protocols</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                            <div className="w-2 h-2 bg-blue-600 rounded-full mt-2 flex-shrink-0"></div>
+                            <p className="text-sm text-slate-700">Review AI-estimated amounts for each claim</p>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Summary Card */}
+                <Card className="border-0 shadow-md bg-gradient-to-br from-cyan-50 to-blue-50">
+                    <CardHeader>
+                        <CardTitle className="text-lg text-slate-900 flex items-center gap-2">
+                            <Activity className="h-5 w-5 text-cyan-600" />
+                            Claims Summary
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div>
+                            <p className="text-xs font-semibold text-slate-600 mb-1">Approval Rate</p>
+                            <div className="w-full bg-slate-200 rounded-full h-2">
+                                <div 
+                                    className="bg-gradient-to-r from-blue-500 to-cyan-500 h-2 rounded-full transition-all" 
+                                    style={{width: `${stats.activeClaims > 0 ? Math.round((stats.activeClaims - stats.pendingReview) / stats.activeClaims * 100) : 0}%`}}
+                                ></div>
+                            </div>
+                            <p className="text-xs text-slate-600 mt-1">{stats.activeClaims > 0 ? Math.round((stats.activeClaims - stats.pendingReview) / stats.activeClaims * 100) : 0}% approved</p>
+                        </div>
+                        <div className="pt-2 border-t border-slate-200">
+                            <p className="text-xs text-slate-600 font-semibold">Last Updated</p>
+                            <p className="text-sm text-slate-800 mt-1">{new Date().toLocaleString()}</p>
+                        </div>
                     </CardContent>
                 </Card>
             </div>
+
+            <style jsx global>{`
+                @keyframes slideInUp {
+                    from {
+                        opacity: 0;
+                        transform: translateY(20px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+            `}</style>
         </div>
     );
 }
