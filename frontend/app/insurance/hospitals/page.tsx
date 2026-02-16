@@ -45,7 +45,7 @@ export default function InsuranceHospitalsPage() {
         setSubmitting(true);
         try {
             await linkHospitalsToCompany(linkedIds);
-            setSuccess("Hospital links updated successfully!");
+            setSuccess("Hospital network updated successfully!");
             setTimeout(() => setSuccess(""), 3000);
         } catch (err) {
             console.error("Failed to save links", err);
@@ -62,14 +62,17 @@ export default function InsuranceHospitalsPage() {
     if (loading) return <div className="p-10 text-center">Loading hospitals...</div>;
 
     return (
-        <div className="container mx-auto py-8">
+        <div className="container mx-auto py-8 px-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Hospital Network Management</h1>
+                    <h1 className="text-3xl font-bold tracking-tight text-purple-700">
+                        Hospital Network Management
+                    </h1>
                     <p className="text-gray-500 mt-1">
                         Link hospitals to your network to allow them to process claims for your policies.
                     </p>
                 </div>
+
                 <div className="flex items-center gap-3">
                     <div className="relative w-64">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -77,13 +80,14 @@ export default function InsuranceHospitalsPage() {
                             value={search}
                             onChange={e => setSearch(e.target.value)}
                             placeholder="Search hospitals..."
-                            className="pl-9"
+                            className="pl-9 focus-visible:ring-purple-500"
                         />
                     </div>
+
                     <Button
                         onClick={handleSaveLinks}
                         disabled={submitting}
-                        className="bg-blue-600 hover:bg-blue-700 text-white gap-2 min-w-[140px]"
+                        className="bg-purple-600 hover:bg-purple-700 text-white gap-2 min-w-[160px]"
                     >
                         {submitting ? "Saving..." : (
                             <>
@@ -96,7 +100,7 @@ export default function InsuranceHospitalsPage() {
             </div>
 
             {success && (
-                <div className="mb-6 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
+                <div className="mb-6 bg-purple-50 border border-purple-200 text-purple-700 px-4 py-3 rounded-md flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
                     <CheckCircle2 className="h-5 w-5" />
                     {success}
                 </div>
@@ -104,31 +108,58 @@ export default function InsuranceHospitalsPage() {
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {filtered.map((hospital) => {
-                    const isLinked = linkedIds.includes(hospital.id || hospital._id);
+                    const id = hospital.id || hospital._id;
+                    const isLinked = linkedIds.includes(id);
+
                     return (
-                        <Card key={hospital.id || hospital._id} className={`transition-all duration-200 ${isLinked ? 'border-blue-200 bg-blue-50/20' : ''}`}>
+                        <Card
+                            key={id}
+                            className={`transition-all duration-200 ${
+                                isLinked ? 'border-purple-200 bg-purple-50/30' : ''
+                            }`}
+                        >
                             <CardHeader className="pb-3">
                                 <div className="flex justify-between items-start">
                                     <div className="p-2 bg-white rounded-lg border shadow-sm">
-                                        <Building2 className={`h-6 w-6 ${isLinked ? 'text-blue-600' : 'text-gray-400'}`} />
+                                        <Building2
+                                            className={`h-6 w-6 ${
+                                                isLinked ? 'text-purple-600' : 'text-gray-400'
+                                            }`}
+                                        />
                                     </div>
-                                    <Badge variant={isLinked ? "default" : "secondary"} className={isLinked ? "bg-blue-600" : ""}>
+
+                                    <Badge
+                                        variant={isLinked ? "default" : "secondary"}
+                                        className={isLinked ? "bg-purple-600" : ""}
+                                    >
                                         {isLinked ? "Connected" : "Not Linked"}
                                     </Badge>
                                 </div>
-                                <CardTitle className="mt-4 text-xl">{hospital.name}</CardTitle>
-                                <CardDescription className="line-clamp-1">{hospital.address}</CardDescription>
+
+                                <CardTitle className="mt-4 text-xl">
+                                    {hospital.name}
+                                </CardTitle>
+
+                                <CardDescription className="line-clamp-1">
+                                    {hospital.address}
+                                </CardDescription>
                             </CardHeader>
+
                             <CardContent>
                                 <div className="space-y-4">
                                     <div className="text-sm text-gray-500">
                                         <p className="font-medium text-gray-700">Contact</p>
                                         <p>{hospital.contact_info}</p>
                                     </div>
+
                                     <Button
                                         variant={isLinked ? "outline" : "default"}
-                                        className={`w-full gap-2 ${!isLinked ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'text-blue-600 border-blue-200 hover:bg-blue-50'}`}
-                                        onClick={() => toggleLink(hospital.id || hospital._id)}
+                                        className={`w-full gap-2 ${
+                                            !isLinked
+                                                ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                                                : 'text-purple-600 border-purple-200 hover:bg-purple-50'
+                                        }`}
+                                        onClick={() => toggleLink(id)}
                                     >
                                         {isLinked ? (
                                             <>
@@ -150,10 +181,14 @@ export default function InsuranceHospitalsPage() {
             </div>
 
             {filtered.length === 0 && (
-                <div className="text-center py-20 bg-gray-50 rounded-xl border-2 border-dashed">
-                    <Building2 className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900">No hospitals found</h3>
-                    <p className="text-gray-500">Try adjusting your search criteria</p>
+                <div className="text-center py-20 bg-purple-50 rounded-xl border-2 border-dashed border-purple-200">
+                    <Building2 className="h-12 w-12 text-purple-300 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-purple-800">
+                        No hospitals found
+                    </h3>
+                    <p className="text-purple-500">
+                        Try adjusting your search criteria
+                    </p>
                 </div>
             )}
         </div>

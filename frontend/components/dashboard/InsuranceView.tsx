@@ -68,7 +68,7 @@ export function InsuranceView() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-bold tracking-tight">Insurance Dashboard</h1>
-                <Button onClick={() => router.push("/insurance/policies?action=add")} className="gap-2 bg-blue-600 hover:bg-blue-700 text-white">
+                <Button onClick={() => router.push("/insurance/policies?action=add")} className="gap-2 bg-purple-600 hover:bg-blue-700 rounded text-white">
                     <PlusCircle className="h-4 w-4" />
                     Add Policy
                 </Button>
