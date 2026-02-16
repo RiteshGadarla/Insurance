@@ -119,10 +119,10 @@ export function Sidebar() {
         />
       )}
 
+
       {/* Hamburger (mobile) */}
+
       <button
-        onClick={() => setCollapsed(!collapsed)}
-        className="fixed top-6 left-6 z-50 p-2.5 rounded-lg bg-white shadow-md border md:hidden"
       >
         {collapsed ? <Menu className="h-6 w-6" /> : <X className="h-6 w-6" />}
       </button>

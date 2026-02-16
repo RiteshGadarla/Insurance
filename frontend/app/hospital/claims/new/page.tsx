@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Upload, FileText, CheckCircle, AlertTriangle } from "lucide-react";
+import { Loader2, Upload, FileText, CheckCircle, AlertTriangle, ArrowRight } from "lucide-react";
 
 export default function NewClaimPage() {
     const router = useRouter();
@@ -47,7 +47,6 @@ export default function NewClaimPage() {
     }, []);
 
     // Load claim if editing
-    // Load claim if editing
     const searchParams = useSearchParams();
     const editClaimId = searchParams.get('claimId');
 
@@ -78,10 +77,9 @@ export default function NewClaimPage() {
 
                     // Determine step
                     if (claim.status === "DRAFT") {
-                        // Always start at step 1 for drafts to allow reviewing/editing details
                         setStep(1);
                     } else {
-                        setStep(3); // View analysis/status
+                        setStep(3);
                     }
                 }
             } catch (err) {
@@ -109,7 +107,6 @@ export default function NewClaimPage() {
 
             let res;
             if (claimId) {
-                // Update existing claim
                 res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/claims/${claimId}`, {
                     method: "PUT",
                     headers: {
@@ -119,7 +116,6 @@ export default function NewClaimPage() {
                     body: body
                 });
             } else {
-                // Create new claim
                 res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/claims/`, {
                     method: "POST",
                     headers: {
@@ -136,9 +132,7 @@ export default function NewClaimPage() {
             setClaimId(data.id || data._id);
             setCurrentClaim(data);
 
-            // Fetch policy details if selected
             if (claimType === "CASHLESS" && selectedPolicyId) {
-                // Fetch updated policy details if needed
                 const detailRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/claims/${data.id || data._id}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
@@ -147,7 +141,7 @@ export default function NewClaimPage() {
                 setCurrentClaim(detailData.claim);
             }
 
-            setStep(2); // Move to Upload
+            setStep(2);
         } catch (err) {
             console.error(err);
             alert("Error saving claim");
@@ -227,52 +221,103 @@ export default function NewClaimPage() {
     };
 
     return (
-        <div className="container mx-auto py-10 max-w-4xl">
-            <h1 className="text-3xl font-bold mb-6">New Claim Submission</h1>
+        <div className="max-w-5xl mx-auto space-y-8 mt-10">
+            {/* Header */}
+            <div>
+                <h1 className="text-4xl font-bold text-slate-900 mb-2">New Claim Submission</h1>
+                <p className="text-slate-600">Submit a new insurance claim with AI-powered verification</p>
+            </div>
 
             {/* Progress Indicator */}
-            <div className="flex justify-between mb-8 border-b pb-4">
-                <div className={`font-semibold ${step >= 1 ? "text-blue-600" : "text-gray-400"}`}>1. Patient Details</div>
-                <div className={`font-semibold ${step >= 2 ? "text-blue-600" : "text-gray-400"}`}>2. Documents</div>
-                <div className={`font-semibold ${step >= 3 ? "text-blue-600" : "text-gray-400"}`}>3. AI Analysis & Submit</div>
+            <div className="flex justify-between gap-4 relative">
+                <div className="absolute top-5 left-0 right-0 h-1 bg-slate-200 -z-10">
+                    <div
+                        className="h-full bg-gradient-to-r from-blue-600 to-cyan-600 transition-all duration-300"
+                        style={{ width: `${((step - 1) / 2) * 100}%` }}
+                    ></div>
+                </div>
+
+                <div className={`flex flex-col items-center gap-2 flex-1 ${step >= 1 ? "" : "opacity-50"}`}>
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white ${step >= 1 ? "bg-gradient-to-r from-blue-600 to-cyan-600" : "bg-slate-300"}`}>
+                        1
+                    </div>
+                    <span className="text-sm font-semibold text-slate-700">Patient Details</span>
+                </div>
+
+                <div className={`flex flex-col items-center gap-2 flex-1 ${step >= 2 ? "" : "opacity-50"}`}>
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white ${step >= 2 ? "bg-gradient-to-r from-blue-600 to-cyan-600" : "bg-slate-300"}`}>
+                        2
+                    </div>
+                    <span className="text-sm font-semibold text-slate-700">Documents</span>
+                </div>
+
+                <div className={`flex flex-col items-center gap-2 flex-1 ${step >= 3 ? "" : "opacity-50"}`}>
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white ${step >= 3 ? "bg-gradient-to-r from-blue-600 to-cyan-600" : "bg-slate-300"}`}>
+                        3
+                    </div>
+                    <span className="text-sm font-semibold text-slate-700">AI Analysis</span>
+                </div>
             </div>
 
             {/* Step 1: Patient Info */}
             {step === 1 && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Patient Information</CardTitle>
+                <Card className="border-0 shadow-lg bg-white">
+                    <CardHeader className="bg-gradient-to-r from-blue-50 to-cyan-50 border-b border-blue-100">
+                        <CardTitle className="text-2xl text-slate-900">Patient Information</CardTitle>
+                        <p className="text-sm text-slate-600 mt-1">Enter patient details and claim type</p>
                     </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
+                    <CardContent className="pt-6 space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label>Patient Name</Label>
-                                <Input value={patientName} onChange={e => setPatientName(e.target.value)} placeholder="Full Name" />
+                                <Label className="text-sm font-semibold text-slate-900">Patient Name</Label>
+                                <Input
+                                    value={patientName}
+                                    onChange={e => setPatientName(e.target.value)}
+                                    placeholder="Full Name"
+                                    className="border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
                             </div>
                             <div className="space-y-2">
-                                <Label>Age</Label>
-                                <Input type="number" value={age} onChange={e => setAge(e.target.value)} placeholder="Age" />
+                                <Label className="text-sm font-semibold text-slate-900">Age</Label>
+                                <Input
+                                    type="number"
+                                    value={age}
+                                    onChange={e => setAge(e.target.value)}
+                                    placeholder="Age"
+                                    className="border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label>Diagnosis</Label>
-                                <Input value={diagnosis} onChange={e => setDiagnosis(e.target.value)} placeholder="e.g. Viral Fever" />
+                                <Label className="text-sm font-semibold text-slate-900">Diagnosis</Label>
+                                <Input
+                                    value={diagnosis}
+                                    onChange={e => setDiagnosis(e.target.value)}
+                                    placeholder="e.g. Viral Fever"
+                                    className="border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
                             </div>
                             <div className="space-y-2">
-                                <Label>Treatment Plan</Label>
-                                <Input value={treatment} onChange={e => setTreatment(e.target.value)} placeholder="e.g. Medication and rest" />
+                                <Label className="text-sm font-semibold text-slate-900">Treatment Plan</Label>
+                                <Input
+                                    value={treatment}
+                                    onChange={e => setTreatment(e.target.value)}
+                                    placeholder="e.g. Medication and rest"
+                                    className="border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
                             </div>
                         </div>
 
                         <div className="space-y-2">
-                            <Label>Claim Type</Label>
+                            <Label className="text-sm font-semibold text-slate-900">Claim Type</Label>
                             <div className="flex gap-4">
                                 <Button
                                     variant={claimType === "CASHLESS" ? "default" : "outline"}
                                     onClick={() => setClaimType("CASHLESS")}
                                     type="button"
+                                    className={claimType === "CASHLESS" ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white" : ""}
                                 >
                                     Cashless
                                 </Button>
@@ -280,6 +325,7 @@ export default function NewClaimPage() {
                                     variant={claimType === "REIMBURSEMENT" ? "default" : "outline"}
                                     onClick={() => setClaimType("REIMBURSEMENT")}
                                     type="button"
+                                    className={claimType === "REIMBURSEMENT" ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white" : ""}
                                 >
                                     Reimbursement
                                 </Button>
@@ -288,31 +334,30 @@ export default function NewClaimPage() {
 
                         {claimType === "CASHLESS" && (
                             <div className="space-y-2">
-                                <Label>Select Insurance Policy</Label>
-                                <div className="relative">
-                                    <select
-                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                        value={selectedPolicyId}
-                                        onChange={e => setSelectedPolicyId(e.target.value)}
-                                    >
-                                        <option value="">Select a policy...</option>
-                                        {policies.map(p => (
-                                            <option key={p.id || p._id} value={p.id || p._id}>
-                                                {p.name} - {p.insurer}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
+                                <Label className="text-sm font-semibold text-slate-900">Select Insurance Policy</Label>
+                                <select
+                                    className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent" value={selectedPolicyId}
+                                    onChange={e => setSelectedPolicyId(e.target.value)}
+                                >
+                                    <option value="">Select a policy...</option>
+                                    {policies.map(p => (
+                                        <option key={p.id || p._id} value={p.id || p._id}>
+                                            {p.name} - {p.insurer}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
                         )}
                     </CardContent>
-                    <CardFooter>
+                    <CardFooter className="border-t border-slate-200 pb-10">
                         <Button
                             onClick={handleCreateDraft}
                             disabled={!patientName || !age || !diagnosis || (claimType === "CASHLESS" && !selectedPolicyId) || loading}
+                            className="gap-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-semibold px-6 py-2.5 rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
                         >
-                            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
                             Next: Upload Documents
+                            <ArrowRight className="h-4 w-4" />
                         </Button>
                     </CardFooter>
                 </Card>
@@ -320,49 +365,71 @@ export default function NewClaimPage() {
 
             {/* Step 2: Upload Documents */}
             {step === 2 && currentClaim && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Required Documents</CardTitle>
+                <Card className="border-0 shadow-lg bg-white">
+                    <CardHeader className="bg-gradient-to-r from-blue-50 to-cyan-50 border-b border-blue-100">
+                        <CardTitle className="text-2xl text-slate-900">Required Documents</CardTitle>
+                        <p className="text-sm text-slate-600 mt-1">Upload necessary documents for verification</p>
                     </CardHeader>
-                    <CardContent className="space-y-4">
+                    <CardContent className="pt-6 space-y-4">
                         {policyDetails?.required_documents?.map((doc: any, idx: number) => {
                             const isUploaded = currentClaim.uploaded_documents?.some((u: any) => u.document_name === doc.document_name);
                             return (
-                                <div key={idx} className="border p-4 rounded-md bg-gray-50">
-                                    <div className="flex justify-between items-start mb-2">
+                                <div key={idx} className="border-2 border-slate-200 hover:border-blue-300 p-4 rounded-lg bg-gradient-to-br from-slate-50 to-white transition-all">
+                                    <div className="flex justify-between items-start mb-3">
                                         <div>
-                                            <div className="font-semibold">{doc.document_name}</div>
-                                            <div className="text-xs text-gray-500">{doc.description}</div>
+                                            <div className="font-semibold text-slate-900 flex items-center gap-2">
+                                                <FileText className="h-4 w-4 text-blue-600" />
+                                                {doc.document_name}
+                                            </div>
+                                            <div className="text-xs text-slate-600 mt-1">{doc.description}</div>
                                         </div>
-                                        {isUploaded && <CheckCircle className="text-green-600 h-5 w-5" />}
+                                        {isUploaded && <CheckCircle className="text-green-600 h-5 w-5 flex-shrink-0" />}
                                     </div>
                                     {!isUploaded && (
-                                        <Input
-                                            type="file"
-                                            onChange={(e) => {
-                                                if (e.target.files?.[0]) handleUpload(doc.document_name, e.target.files[0]);
-                                            }}
-                                        />
+                                        <div className="relative">
+                                            <Input
+                                                type="file"
+                                                onChange={(e) => {
+                                                    if (e.target.files?.[0]) handleUpload(doc.document_name, e.target.files[0]);
+                                                }}
+                                                className="border border-dashed border-blue-300 rounded-lg px-4 py-2.5 cursor-pointer hover:bg-blue-50"
+                                            />
+                                        </div>
                                     )}
                                 </div>
                             );
                         })}
 
                         {(!policyDetails || !policyDetails.required_documents?.length) && (
-                            <div className="border p-4 rounded-md">
-                                <Label>Upload Documents</Label>
+                            <div className="border-2 border-dashed border-blue-300 p-6 rounded-lg bg-blue-50">
+                                <Label className="font-semibold text-slate-900 flex items-center gap-2 mb-3">
+                                    <Upload className="h-4 w-4 text-blue-600" />
+                                    Upload Documents
+                                </Label>
                                 <Input
                                     type="file"
                                     onChange={(e) => {
                                         if (e.target.files?.[0]) handleUpload("Generic Document", e.target.files[0]);
                                     }}
+                                    className="border border-blue-300 rounded-lg px-4 py-2.5 cursor-pointer hover:bg-white"
                                 />
                             </div>
                         )}
                     </CardContent>
-                    <CardFooter>
-                        <Button onClick={() => setStep(3)}>
-                            Next: AI Verification
+                    <CardFooter className="border-t border-slate-200 flex justify-between">
+                        <Button
+                            variant="outline"
+                            onClick={() => setStep(1)}
+                            className="border-slate-300"
+                        >
+                            Back
+                        </Button>
+                        <Button
+                            onClick={() => setStep(3)}
+                            className="gap-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-semibold px-6 py-2.5 rounded-lg"
+                        >
+                            Next: AI Analysis
+                            <ArrowRight className="h-4 w-4" />
                         </Button>
                     </CardFooter>
                 </Card>
@@ -370,110 +437,126 @@ export default function NewClaimPage() {
 
             {/* Step 3: AI Analysis & Submit */}
             {step === 3 && currentClaim && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Left: Documents Summary */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Documents Uploaded</CardTitle>
+                    <Card className="lg:col-span-1 border-0 shadow-lg">
+                        <CardHeader className="bg-gradient-to-r from-blue-50 to-cyan-50 border-b border-blue-100">
+                            <CardTitle className="text-lg text-slate-900">Documents Uploaded</CardTitle>
                         </CardHeader>
-                        <CardContent>
-                            <div className="space-y-2">
-                                {currentClaim.uploaded_documents?.map((doc: any, idx: number) => (
-                                    <div key={idx} className="flex items-center gap-2 text-sm p-2 border rounded">
-                                        <CheckCircle className="h-4 w-4 text-green-500" />
-                                        <span>{doc.document_name}</span>
-                                    </div>
-                                ))}
-                                {!currentClaim.uploaded_documents?.length && <div className="text-gray-500 italic">No documents uploaded.</div>}
-                            </div>
+                        <CardContent className="pt-4 space-y-2">
+                            {currentClaim.uploaded_documents?.map((doc: any, idx: number) => (
+                                <div key={idx} className="flex items-center gap-2 text-sm p-3 bg-green-50 border border-green-200 rounded-lg">
+                                    <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+                                    <span className="text-slate-700">{doc.document_name}</span>
+                                </div>
+                            ))}
+                            {!currentClaim.uploaded_documents?.length && (
+                                <div className="text-sm text-slate-600 italic text-center py-4">No documents uploaded.</div>
+                            )}
                         </CardContent>
-                        <CardFooter>
-                            <Button variant="outline" onClick={() => setStep(2)}>Back to Uploads</Button>
+                        <CardFooter className="border-t border-slate-200">
+                            <Button
+                                variant="outline"
+                                onClick={() => setStep(2)}
+                                className="w-full border-slate-300"
+                            >
+                                Back to Uploads
+                            </Button>
                         </CardFooter>
                     </Card>
 
                     {/* Right: AI Analysis */}
-                    <Card className="h-fit">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                🤖 AI Analysis
-                                {currentClaim.ai_ready_for_review && <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Ready for Review</span>}
+                    <Card className="lg:col-span-2 border-0 shadow-lg">
+                        <CardHeader className="bg-gradient-to-r from-blue-50 to-cyan-50 border-b border-blue-100">
+                            <CardTitle className="flex items-center gap-2 text-lg text-slate-900">
+                                🤖 AI Verification
+                                {currentClaim.ai_ready_for_review && (
+                                    <span className="text-xs bg-green-100 text-green-800 px-3 py-1 rounded-full font-semibold">Ready for Review</span>
+                                )}
                             </CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-4">
+                        <CardContent className="pt-6 space-y-4">
                             {currentClaim.ai_score === undefined || currentClaim.ai_score === null ? (
-                                <div className="text-center py-6">
-                                    <p className="text-gray-500 mb-4">Click below to analyze the claim and documents.</p>
-                                    <Button onClick={handleAnalyze} disabled={loading}>
-                                        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                        Verify Claim with AI
+                                <div className="text-center py-8">
+                                    <div className="text-5xl mb-4">🔍</div>
+                                    <p className="text-slate-600 mb-6 font-medium">Click below to analyze the claim and documents using AI.</p>
+                                    <Button
+                                        onClick={handleAnalyze}
+                                        disabled={loading}
+                                        className="gap-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-semibold px-6 py-3 rounded-lg"
+                                    >
+                                        {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                                        Run AI Verification
                                     </Button>
                                 </div>
                             ) : (
                                 <>
-                                    <div className="grid grid-cols-2 gap-4 text-center">
-                                        <div className="bg-blue-50 p-2 rounded">
-                                            <div className="text-xs text-gray-500">Score</div>
-                                            <div className="text-2xl font-bold text-blue-700">{currentClaim.ai_score || "-"}</div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-lg border border-blue-200">
+                                            <div className="text-xs font-semibold text-slate-600 mb-1">AI Score</div>
+                                            <div className="text-3xl font-bold text-blue-700">{currentClaim.ai_score || "-"}</div>
                                         </div>
-                                        <div className="bg-green-50 p-2 rounded">
-                                            <div className="text-xs text-gray-500">Est. Amount</div>
-                                            <div className="text-2xl font-bold text-green-700">${currentClaim.ai_estimated_amount || "-"}</div>
+                                        <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-lg border border-green-200">
+                                            <div className="text-xs font-semibold text-slate-600 mb-1">Est. Amount</div>
+                                            <div className="text-3xl font-bold text-green-700">${(currentClaim.ai_estimated_amount || 0).toLocaleString()}</div>
                                         </div>
                                     </div>
 
-                                    <div className="bg-gray-50 p-3 rounded text-sm">
-                                        <strong>AI Notes:</strong> {currentClaim.ai_notes || "Processing..."}
-                                    </div>
-
-                                    <div>
-                                        <h4 className="text-sm font-semibold mb-2">Document Feedback</h4>
-                                        <div className="border rounded-md overflow-hidden">
-                                            <table className="w-full text-sm text-left">
-                                                <thead className="bg-gray-100 text-gray-600 font-medium border-b">
-                                                    <tr>
-                                                        <th className="px-3 py-2">Document</th>
-                                                        <th className="px-3 py-2">Feedback</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y">
-                                                    {currentClaim.ai_document_feedback?.map((fb: any, i: number) => (
-                                                        <tr key={i} className="hover:bg-gray-50">
-                                                            <td className="px-3 py-2 font-medium flex items-center gap-2">
-                                                                <FileText className="h-3 w-3 text-gray-500" />
-                                                                {fb.document_name}
-                                                            </td>
-                                                            <td className="px-3 py-2 text-gray-600">{fb.feedback_note}</td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
+                                    {currentClaim.ai_notes && (
+                                        <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg">
+                                            <p className="text-sm font-semibold text-amber-900 mb-2">AI Notes</p>
+                                            <p className="text-sm text-amber-800">{currentClaim.ai_notes}</p>
                                         </div>
-                                    </div>
-                                    <div className="flex justify-center mt-4">
-                                        <Button variant="outline" onClick={handleAnalyze} disabled={loading}>
-                                            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                            Re-verify Claim with AI
-                                        </Button>
-                                    </div>
+                                    )}
+
+                                    {currentClaim.ai_document_feedback?.length > 0 && (
+                                        <div>
+                                            <h4 className="text-sm font-semibold text-slate-900 mb-3">Document Feedback</h4>
+                                            <div className="space-y-2">
+                                                {currentClaim.ai_document_feedback?.map((fb: any, i: number) => (
+                                                    <div key={i} className="flex gap-3 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                                                        <FileText className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-xs font-semibold text-slate-900">{fb.document_name}</p>
+                                                            <p className="text-xs text-slate-600 mt-1">{fb.feedback_note}</p>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <Button
+                                        variant="outline"
+                                        onClick={handleAnalyze}
+                                        disabled={loading}
+                                        className="w-full border-blue-300 text-blue-600 hover:bg-blue-50"
+                                    >
+                                        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                        Re-run AI Verification
+                                    </Button>
                                 </>
                             )}
                         </CardContent>
-                        <CardFooter>
-                            {/* Only show submit if AI has run (or based on some logic) */}
+                        <CardFooter className="border-t border-slate-200">
                             {currentClaim.ai_ready_for_review && (
                                 claimType === "CASHLESS" ? (
                                     <Button
-                                        className="w-full"
+                                        className="w-full gap-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-semibold px-6 py-2.5 rounded-lg"
                                         onClick={handleSubmitReview}
                                         disabled={loading}
                                     >
-                                        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                        {loading && <Loader2 className="h-4 w-4 animate-spin" />}
                                         Send to Insurance Company
+                                        <ArrowRight className="h-4 w-4" />
                                     </Button>
                                 ) : (
-                                    <Button className="w-full" onClick={() => router.push("/dashboard")}>
-                                        Finish (Reimbursement Analysis Only)
+                                    <Button
+                                        className="w-full gap-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-semibold px-6 py-2.5 rounded-lg"
+                                        onClick={() => router.push("/dashboard")}
+                                    >
+                                        Complete Submission
+                                        <ArrowRight className="h-4 w-4" />
                                     </Button>
                                 )
                             )}
@@ -481,6 +564,19 @@ export default function NewClaimPage() {
                     </Card>
                 </div>
             )}
+
+            <style jsx global>{`
+                @keyframes slideInUp {
+                    from {
+                        opacity: 0;
+                        transform: translateY(20px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+            `}</style>
         </div>
     );
 }
