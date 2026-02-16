@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { AdminView } from "@/components/dashboard/AdminView";
 import { HospitalView } from "@/components/dashboard/HospitalView";
 import { InsuranceView } from "@/components/dashboard/InsuranceView";
-import { LogOut, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 export default function DashboardPage() {
     const [role, setRole] = useState<string | null>(null);
@@ -28,40 +28,43 @@ export default function DashboardPage() {
         setLoading(false);
     }, [router]);
 
-    const handleLogout = () => {
-        localStorage.clear();
-        router.push("/login");
-    };
-
     if (loading) {
         return (
-            <div className="flex h-screen items-center justify-center">
-                <Loader2 className="animate-spin" />
+            <div className="flex h-screen items-center justify-center bg-gradient-to-br from-emerald-50 to-teal-50">
+                <div className="text-center">
+                    <div className="w-12 h-12 rounded-full border-4 border-emerald-200 border-t-emerald-600 animate-spin mx-auto mb-4"></div>
+                    <p className="text-slate-600 font-medium">Loading dashboard...</p>
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gray-100">
-            <nav className="bg-white shadow p-4 flex justify-between items-center">
-                <div>
-                    <h1 className="text-xl font-bold text-gray-800">Insurance Portal</h1>
-                    <span className="text-sm text-gray-500">Welcome, {name} ({role})</span>
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-emerald-50">
+            {/* Top Navigation Bar */}
+            <nav className="bg-white border-b border-emerald-100 shadow-sm sticky top-0 z-40">
+                <div className="container mx-auto px-6 py-4 flex justify-between items-center">
+                    <div>
+                        <h1 className="text-2xl font-bold text-slate-900">
+                            Welcome, <span className="bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">{name}</span>
+                        </h1>
+                        <span className="text-sm text-slate-600">
+                            System: <span className="font-semibold text-emerald-700">{role?.replace("_", " ").toUpperCase()}</span>
+                        </span>
+                    </div>
                 </div>
-                <button
-                    onClick={handleLogout}
-                    className="flex items-center text-red-600 hover:text-red-800"
-                >
-                    <LogOut className="mr-2 h-4 w-4" /> Sign Out
-                </button>
             </nav>
 
-            <main className="container mx-auto p-6">
+            {/* Main Content */}
+            <main className="container mx-auto px-6 py-8">
                 {role === "admin" && <AdminView />}
                 {role === "hospital" && <HospitalView />}
                 {role === "insurance_company" && <InsuranceView />}
                 {!["admin", "hospital", "insurance_company"].includes(role!) && (
-                    <div className="text-center text-red-600">Unknown Role: {role}</div>
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+                        <p className="text-red-700 font-semibold">Unknown Role: {role}</p>
+                        <p className="text-red-600 text-sm mt-2">Please contact administrator for assistance.</p>
+                    </div>
                 )}
             </main>
         </div>

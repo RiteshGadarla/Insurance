@@ -9,10 +9,12 @@ import {
     FileText,
     ShieldCheck,
     PlusCircle,
-    Users,
     Building2,
     LogOut,
-    Files
+    Files,
+    ChevronRight,
+    Menu,
+    X
 } from "lucide-react";
 
 export function Sidebar() {
@@ -20,6 +22,7 @@ export function Sidebar() {
     const router = useRouter();
     const [role, setRole] = useState<string | null>(null);
     const [mounted, setMounted] = useState(false);
+    const [collapsed, setCollapsed] = useState(true);
 
     useEffect(() => {
         setMounted(true);
@@ -60,46 +63,114 @@ export function Sidebar() {
     }
 
     return (
-        <div className="w-64 border-r border-gray-200 bg-white min-h-screen p-4 flex flex-col shadow-sm">
-            <div className="mb-8 font-bold text-xl px-4 text-blue-600 flex items-center gap-2">
-                <ShieldCheck className="h-6 w-6" />
-                InsureVerify
-            </div>
+        <>
+            {/* Overlay for mobile when sidebar is open */}
+            {!collapsed && (
+                <div
+                    className="fixed inset-0 bg-black/50 z-30 md:hidden"
+                    onClick={() => setCollapsed(true)}
+                ></div>
+            )}
 
-            <div className="px-4 mb-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                {role ? role.replace("_", " ") : "Menu"}
-            </div>
+            {/* Floating Hamburger Button */}
+            <button
+                onClick={() => setCollapsed(!collapsed)}
+                className="fixed top-6 left-6 z-50 p-2.5 hover:bg-emerald-100 rounded-lg transition-all duration-300 bg-white shadow-md border border-emerald-200 md:hidden"
+            >
+                {collapsed ? (
+                    <Menu className="h-6 w-6 text-emerald-600" />
+                ) : (
+                    <X className="h-6 w-6 text-emerald-600" />
+                )}
+            </button>
 
-            <nav className="space-y-1 flex-1">
-                {links.map((link) => {
-                    const Icon = link.icon;
-                    return (
-                        <Link
-                            key={link.href}
-                            href={link.href}
-                            className={cn(
-                                "flex items-center gap-3 px-4 py-2.5 rounded-md transition-all duration-200 group font-medium text-sm",
-                                pathname === link.href
-                                    ? "bg-blue-50 text-blue-600 shadow-sm ring-1 ring-blue-100"
-                                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                            )}
-                        >
-                            <Icon className={cn("h-4 w-4", pathname === link.href ? "text-blue-600" : "text-gray-400 group-hover:text-gray-600")} />
-                            {link.label}
-                        </Link>
-                    );
-                })}
-            </nav>
+            {/* Sidebar */}
+            <div
+                className={cn(
+                    "fixed md:static w-64 border-r border-emerald-100 bg-gradient-to-b from-white to-emerald-50 min-h-screen p-4 flex flex-col shadow-sm transition-all duration-300 ease-in-out z-40",
+                    collapsed ? "-translate-x-full md:translate-x-0" : "translate-x-0"
+                )}
+            >
+                {/* Logo Section */}
+                <div className="mb-8 font-bold text-xl px-4 py-3 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 text-white flex items-center gap-2 shadow-md hover:shadow-lg transition-shadow">
+                    <div className="p-2 bg-white/20 rounded-md">
+                        <ShieldCheck className="h-5 w-5" />
+                    </div>
+                    <div>
+                        <div className="text-lg font-bold">ClaimVerify</div>
+                        <div className="text-xs font-medium text-emerald-100">AI Verification</div>
+                    </div>
+                </div>
 
-            <div className="mt-auto px-4 pt-4 border-t border-gray-100">
+                {/* Menu Label */}
+                <div className="px-4 mb-6 text-xs font-bold text-emerald-700 uppercase tracking-widest flex items-center gap-2">
+                    <div className="h-1 w-1 rounded-full bg-emerald-600"></div>
+                    {role ? role.replace("_", " ") : "Menu"}
+                </div>
+
+                {/* Navigation */}
+                <nav className="space-y-2 flex-1">
+                    {links.map((link) => {
+                        const Icon = link.icon;
+                        const isActive = pathname === link.href;
+
+                        return (
+                            <Link
+                                key={link.href}
+                                href={link.href}
+                                className={cn(
+                                    "flex items-center justify-between gap-3 px-4 py-3 rounded-lg transition-all duration-200 group font-medium text-sm",
+                                    isActive
+                                        ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md ring-2 ring-emerald-200"
+                                        : "text-slate-700 hover:bg-emerald-100/50 hover:text-emerald-700"
+                                )}
+                                onClick={() => setCollapsed(true)}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <Icon className={cn(
+                                        "h-5 w-5 transition-colors",
+                                        isActive
+                                            ? "text-white"
+                                            : "text-slate-500 group-hover:text-emerald-600"
+                                    )} />
+                                    <span>{link.label}</span>
+                                </div>
+                                {isActive && (
+                                    <ChevronRight className="h-4 w-4 text-white" />
+                                )}
+                            </Link>
+                        );
+                    })}
+                </nav>
+
+                {/* Divider */}
+                <div className="my-4 h-px bg-gradient-to-r from-emerald-200 to-transparent"></div>
+
+                {/* User Info Section */}
+                <div className="px-4 py-3 bg-emerald-50 rounded-lg border border-emerald-200 mb-4">
+                    <p className="text-xs text-slate-600 mb-1">Logged in as</p>
+                    <p className="text-sm font-semibold text-emerald-700 truncate">
+                        {role ? role.replace("_", " ").toUpperCase() : "User"}
+                    </p>
+                </div>
+
+                {/* Logout Button */}
                 <button
                     onClick={handleLogout}
-                    className="flex w-full items-center gap-3 px-4 py-2.5 rounded-md text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+                    className="flex w-full items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 transition-all duration-200 shadow-md hover:shadow-lg hover:-translate-y-0.5"
                 >
                     <LogOut className="h-4 w-4" />
                     Logout
                 </button>
+
+                {/* Footer Text */}
+                <div className="mt-6 pt-4 border-t border-emerald-100">
+                    <p className="text-xs text-center text-slate-500">
+                        <span className="font-semibold text-emerald-600">ClaimVerify AI</span><br />
+                        Verification System v1.0
+                    </p>
+                </div>
             </div>
-        </div>
+        </>
     );
 }
