@@ -3,7 +3,7 @@ import os
 from app.core.config import settings
 
 def list_models():
-    api_key = settings.GOOGLE_API_KEY
+    api_key = settings.GEMINI_API_KEY
     if not api_key:
         print("No API Key found")
         return

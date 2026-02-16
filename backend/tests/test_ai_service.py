@@ -17,7 +17,7 @@ def test_ai_service_analysis_mock(mock_model_class):
     mock_model.generate_content.return_value = mock_response
     
     # Needs API Key to even try generating
-    with patch.dict('os.environ', {'GOOGLE_API_KEY': 'fake_key'}):
+    with patch.dict('os.environ', {'GEMINI_API_KEY': 'fake_key'}):
         # Re-init to pick up key
         service = ai_service
         service.api_key = "fake_key" 

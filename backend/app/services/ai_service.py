@@ -17,9 +17,9 @@ from app.core.config import settings
 
 class AIService:
     def __init__(self):
-        self.api_key = settings.GOOGLE_API_KEY
+        self.api_key = settings.GEMINI_API_KEY
         if not self.api_key:
-            print("WARNING: GOOGLE_API_KEY not found in settings.")
+            print("WARNING: GEMINI_API_KEY not found in settings.")
         else:
             genai.configure(api_key=self.api_key)
             self.model = genai.GenerativeModel('gemini-2.5-flash')
