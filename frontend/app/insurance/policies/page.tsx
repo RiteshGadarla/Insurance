@@ -211,7 +211,11 @@ function PoliciesContent() {
                                                 Finish Setup
                                             </Button>
                                         ) : (
-                                            <Button variant="outline" className="gap-2 border-blue-200 text-blue-700 hover:bg-blue-50">
+                                            <Button
+                                                variant="outline"
+                                                className="gap-2 border-blue-200 text-blue-700 hover:bg-blue-50"
+                                                onClick={() => router.push(`/insurance/policies/${policy.id || policy._id}/review`)}
+                                            >
                                                 <Edit2 className="h-4 w-4" />
                                                 Edit Policy
                                             </Button>

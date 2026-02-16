@@ -39,7 +39,8 @@ export default function AdminHospitalsPage() {
             });
             if (res.ok) {
                 const data = await res.json();
-                setHospitals(data);
+                const normalizedData = data.map((h: any) => ({ ...h, id: h._id || h.id }));
+                setHospitals(normalizedData);
             }
         } catch (error) {
             console.error("Failed to fetch hospitals", error);

@@ -6,8 +6,8 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "supersecretkey"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    GEMINI_API_KEY: str = "AIzaSyBC23P0O-ppZ8DjJVmMykKPLLlSz9AAi20"
-    
+    GOOGLE_API_KEY: str | None = None
+
     class Config:
         env_file = ".env"
 
