@@ -46,6 +46,56 @@ class AIService:
             ) for name, desc in suggestions
         ]
 
+    def analyze_document(self, policy_text: str, document_text: str, document_type: str) -> Dict[str, Any]:
+        """
+        Analyzes a single document against the policy text to find violations and anomalies.
+        """
+        if not self.api_key:
+            return {"status": "Error", "message": "AI Service not configured"}
+
+        prompt = f"""
+        You are an expert insurance claim adjuster. Compare the following Hospital Document against the Policy Terms.
+
+        **Policy Terms (Extracted Text):**
+        {policy_text[:10000]}  # Truncate to avoid token limits if necessary
+
+        **Hospital Document (Extracted Text):**
+        Type: {document_type}
+        Content:
+        {document_text[:10000]}
+
+        **Task:**
+        1. Identify any violations of the policy terms in the document.
+        2. Identify any anomalies or suspicious details (e.g., mismatched dates, excessive charges, non-medical items).
+        3. Determine if the document is valid and verified based on the policy.
+
+        **Output Format (JSON strictly):**
+        {{
+            "is_valid": <bool>,
+            "violation_probability": <int 0-100>,
+            "anomalies": [
+                {{ "description": "<text>", "severity": "<High/Medium/Low>" }}
+            ],
+            "violations": [
+                {{ "description": "<text>", "policy_clause": "<relevant text from policy>" }}
+            ],
+            "confidence_score": <int 0-100>,
+            "summary": "<Short analysis summary>"
+        }}
+        """
+
+        try:
+            response = self.model.generate_content(prompt)
+            clean_text = response.text.replace('```json', '').replace('```', '').strip()
+            start = clean_text.find('{')
+            end = clean_text.rfind('}') + 1
+            if start != -1 and end != -1:
+                clean_text = clean_text[start:end]
+            return json.loads(clean_text)
+        except Exception as e:
+            print(f"Gemini Error: {e}")
+            return {"status": "Error", "message": str(e)}
+
     def analyze_claim(self, claim: Dict[str, Any], policy: Dict[str, Any], documents: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Analyzes a claim against a policy and submitted documents using Gemini.

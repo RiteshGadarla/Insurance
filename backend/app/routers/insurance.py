@@ -5,7 +5,9 @@ from app.models.policy import Policy, RequiredDocument
 from app.models.hospital import Hospital
 from app.models.insurance_company import InsuranceCompany
 from app.core.database import db
+from app.core.database import db
 from app.services.ai_service import AIService
+from app.services.ocr_service import ocr_service
 from typing import List, Optional
 from pydantic import BaseModel
 from bson import ObjectId
@@ -56,10 +58,14 @@ async def create_policy(
     # Call AI service for suggestions
     suggested_docs = AIService.analyze_policy_pdf(file_path)
 
+    # Extract text (OCR)
+    extracted_text = ocr_service.extract_text(file_path)
+
     new_policy = Policy(
         name=name,
         insurance_company_id=company_id,
         policy_pdf_path=file_path,
+        extracted_text=extracted_text,
         required_documents=suggested_docs,
         status="DRAFT"
     )

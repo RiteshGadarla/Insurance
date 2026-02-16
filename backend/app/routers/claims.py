@@ -12,6 +12,7 @@ import math
 from datetime import datetime
 
 from app.services.ai_service import ai_service
+from app.services.ocr_service import ocr_service
 # ... imports ...
 
 # Removed Mock AIService
@@ -200,11 +201,32 @@ async def upload_document(
     # Save File
     file_path = save_upload_file(file, "claims")
     
+    # Extract Text (OCR) immediately
+    extracted_text = ocr_service.extract_text(file_path)
+    
+    # Store in Document Collection
+    doc_collection = get_document_collection()
+    
+    new_doc = Document(
+        filename=file.filename,
+        file_path=file_path,
+        policy_id=claim.get("policy_id", ""),  # Might be empty if generic upload
+        hospital_id=user.hospital_id or str(user.id),
+        document_type=document_name,
+        extracted_text=extracted_text,
+        created_at=datetime.utcnow()
+    )
+    
+    doc_result = await doc_collection.insert_one(new_doc.model_dump(by_alias=True, exclude={"id"}))
+    doc_id = str(doc_result.inserted_id)
+
     # Update Claim with new document
     doc_entry = {
         "document_name": document_name,
         "url": file_path, # Using 'url' to be generic, though strictly local path here
-        "uploaded_at": datetime.utcnow()
+        "uploaded_at": datetime.utcnow(),
+        "document_id": doc_id,
+        "extracted_text": extracted_text # Store here for easy frontend access without extra fetch
     }
     
     await collection.update_one(
@@ -212,7 +234,11 @@ async def upload_document(
         {"$push": {"uploaded_documents": doc_entry}}
     )
     
-    return await collection.find_one({"_id": oid})
+    updated_claim = await collection.find_one({"_id": oid}) # Fetch updated claim to return
+    if updated_claim:
+         updated_claim["id"] = str(updated_claim["_id"])
+         
+    return updated_claim
 
 @router.post("/{claim_id}/verify", response_model=Claim)
 async def verify_claim(claim_id: str, user: User = Depends(get_current_user)):

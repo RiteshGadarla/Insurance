@@ -1,9 +1,13 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List
+from datetime import datetime
 from app.models.policy import Policy
 from app.models.user import User, UserRole
 from app.core.collections import get_policy_collection
 from app.core.deps import get_current_user
+from app.services.ocr_service import ocr_service
+from app.utils.file_handling import save_upload_file
+from fastapi import UploadFile, File, Form
 from bson import ObjectId
 
 router = APIRouter()
@@ -25,6 +29,17 @@ async def create_policy(
         policy.insurance_company_id = str(user.id)
 
     collection = get_policy_collection()
+    
+    # Auto-extract text if PDF path is provided and text is missing
+    if policy.policy_pdf_path and not policy.extracted_text:
+        # Check if path exists (it might be relative)
+        import os
+        full_path = policy.policy_pdf_path
+        if not os.path.exists(full_path) and os.path.exists(os.path.join("uploads", full_path)):
+             full_path = os.path.join("uploads", full_path)
+             
+        policy.extracted_text = ocr_service.extract_text(full_path)
+        
     new_policy = await collection.insert_one(policy.model_dump(by_alias=True, exclude={"id"}))
     created_policy = await collection.find_one({"_id": new_policy.inserted_id})
     if created_policy:
@@ -87,3 +102,50 @@ async def get_policy(policy_id: str, user: User = Depends(get_current_user)):
     
     policy["id"] = str(policy["_id"])
     return policy
+
+@router.post("/{policy_id}/upload", response_model=Policy)
+async def upload_policy_document(
+    policy_id: str,
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user)
+):
+    if user.role != UserRole.INSURANCE_COMPANY:
+        raise HTTPException(status_code=403, detail="Only Insurance Companies can upload policy documents")
+
+    collection = get_policy_collection()
+    try:
+        pid = ObjectId(policy_id)
+    except:
+        raise HTTPException(status_code=400, detail="Invalid Policy ID")
+
+    policy = await collection.find_one({"_id": pid})
+    if not policy:
+        raise HTTPException(status_code=404, detail="Policy not found")
+
+    # Verify ownership
+    if policy.get("insurance_company_id") != (user.insurance_company_id or str(user.id)):
+        raise HTTPException(status_code=403, detail="Not authorized to update this policy")
+
+    # Save File
+    file_path = save_upload_file(file, "policies")
+    
+    # Extract Text (OCR)
+    extracted_text = ocr_service.extract_text(file_path)
+    
+    # Update Policy
+    update_data = {
+        "policy_pdf_path": file_path,
+        "extracted_text": extracted_text,
+        "updated_at": datetime.utcnow()
+    }
+    
+    await collection.update_one(
+        {"_id": pid},
+        {"$set": update_data}
+    )
+    
+    updated_policy = await collection.find_one({"_id": pid})
+    if updated_policy:
+        updated_policy["id"] = str(updated_policy["_id"])
+        
+    return updated_policy

@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from app.core.database import db
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import auth, admin, hospital, insurance, policies, claims
+from app.routers import auth, admin, hospital, insurance, policies, claims, documents
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -31,3 +31,4 @@ app.include_router(hospital.router, prefix="/hospital", tags=["Hospital"])
 app.include_router(insurance.router, prefix="/insurance", tags=["Insurance Company"])
 app.include_router(policies.router, prefix="/policies", tags=["Policies"]) # Retaining old routes for now
 app.include_router(claims.router, prefix="/claims", tags=["Claims"])     # Retaining old routes for now
+app.include_router(documents.router, prefix="/documents", tags=["Documents"])

@@ -21,6 +21,10 @@ class Policy(MongoModel):
     policy_pdf_path: Optional[str] = None
     status: str = "DRAFT" # DRAFT, ACTIVE
     
+    # OCR Data
+    extracted_text: Optional[str] = None
+    extracted_data: Optional[Dict[str, Any]] = None
+
     # Timestamps
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)

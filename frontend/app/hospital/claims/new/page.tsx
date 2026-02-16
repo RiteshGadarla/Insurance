@@ -370,18 +370,28 @@ export default function NewClaimPage() {
 
             {/* Step 3: AI Analysis & Submit */}
             {step === 3 && currentClaim && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Left: Documents Summary */}
+                <div className="space-y-6">
+                    {/* Documents Summary & OCR Text */}
                     <Card>
                         <CardHeader>
                             <CardTitle>Documents Uploaded</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="space-y-2">
+                            <div className="space-y-4">
                                 {currentClaim.uploaded_documents?.map((doc: any, idx: number) => (
-                                    <div key={idx} className="flex items-center gap-2 text-sm p-2 border rounded">
-                                        <CheckCircle className="h-4 w-4 text-green-500" />
-                                        <span>{doc.document_name}</span>
+                                    <div key={idx} className="border rounded-md p-4">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <div className="flex items-center gap-2 font-medium">
+                                                <CheckCircle className="h-4 w-4 text-green-500" />
+                                                <span>{doc.document_name}</span>
+                                                <span className="text-xs text-gray-400 font-normal">({new Date(doc.uploaded_at).toLocaleString()})</span>
+                                            </div>
+                                            <a href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/${doc.url}`} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">
+                                                View File
+                                            </a>
+                                        </div>
+
+
                                     </div>
                                 ))}
                                 {!currentClaim.uploaded_documents?.length && <div className="text-gray-500 italic">No documents uploaded.</div>}
@@ -392,8 +402,8 @@ export default function NewClaimPage() {
                         </CardFooter>
                     </Card>
 
-                    {/* Right: AI Analysis */}
-                    <Card className="h-fit">
+                    {/* AI Analysis */}
+                    <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 🤖 AI Analysis
