@@ -5,174 +5,364 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus, Trash2, ShieldCheck, Phone, AlertCircle, CheckCircle2 } from "lucide-react";
 
-interface InsuranceCompany {
-    id: string;
+interface Company {
+    _id?: string;
+    id?: string;
     name: string;
     contact_info: string;
+    admin_user_id?: string;
 }
 
-export default function AdminInsurancePage() {
-    const [companies, setCompanies] = useState<InsuranceCompany[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [showForm, setShowForm] = useState(false);
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-    // Form State
-    const [formData, setFormData] = useState({
+export default function AdminInsuranceCompaniesPage() {
+    const [companies, setCompanies] = useState<Company[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [createLoading, setCreateLoading] = useState(false);
+    const [showForm, setShowForm] = useState(false);
+    const [message, setMessage] = useState("");
+    const [messageType, setMessageType] = useState<"success" | "error">("success");
+
+    const [form, setForm] = useState({
         name: "",
         contact_info: "",
         admin_username: "",
+        admin_email: "",
         admin_name: "",
-        admin_password: ""
+        admin_password: "",
     });
 
-    const fetchCompanies = async () => {
-        const token = localStorage.getItem("token");
-        if (!token) return;
-
-        try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/admin/insurance-companies`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setCompanies(data);
-            }
-        } catch (error) {
-            console.error("Failed to fetch companies", error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
     useEffect(() => {
-        fetchCompanies();
+        const token = localStorage.getItem("token");
+        fetch(`${API}/admin/insurance-companies`, { headers: { Authorization: `Bearer ${token}` } })
+            .then((r) => r.ok ? r.json() : [])
+            .then(setCompanies)
+            .catch(console.error)
+            .finally(() => setLoading(false));
     }, []);
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
         const token = localStorage.getItem("token");
-        if (!token) return;
+        setCreateLoading(true);
+        setMessage("");
 
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/admin/insurance-companies`, {
+            const res = await fetch(`${API}/admin/insurance-companies`, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify(formData)
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                body: JSON.stringify(form),
             });
 
             if (res.ok) {
+                setMessageType("success");
+                setMessage("Insurance company created successfully!");
+                setForm({ name: "", contact_info: "", admin_username: "", admin_email: "", admin_name: "", admin_password: "" });
                 setShowForm(false);
-                setFormData({
-                    name: "",
-                    contact_info: "",
-                    admin_username: "",
-                    admin_name: "",
-                    admin_password: ""
-                });
-                fetchCompanies();
+                
+                const list = await fetch(`${API}/admin/insurance-companies`, { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json());
+                setCompanies(list);
+                
+                setTimeout(() => setMessage(""), 3000);
             } else {
-                alert("Failed to create company. Check inputs.");
+                const data = await res.json();
+                setMessageType("error");
+                setMessage(data.detail || "Failed to create insurance company. Please check inputs.");
+                setTimeout(() => setMessage(""), 3000);
             }
         } catch (error) {
             console.error("Error creating company", error);
+            setMessageType("error");
+            setMessage("An error occurred while creating the insurance company.");
+            setTimeout(() => setMessage(""), 3000);
+        } finally {
+            setCreateLoading(false);
         }
     };
 
-    const handleDelete = async (id: string) => {
-        if (!confirm("Are you sure? This action cannot be undone.")) return;
+    const handleDelete = async (id: string, name: string) => {
+        if (!confirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) return;
+        
         const token = localStorage.getItem("token");
-        if (!token) return;
+        console.log("Deleting company ID:", id);
 
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/admin/insurance-companies/${id}`, {
+            const res = await fetch(`${API}/admin/insurance-companies/${id}`, {
                 method: "DELETE",
                 headers: { Authorization: `Bearer ${token}` }
             });
 
-            if (res.ok) {
-                fetchCompanies();
+            if (!res.ok) {
+                const errText = await res.text();
+                console.error("Delete error:", errText);
+                setMessageType("error");
+                setMessage("Failed to delete insurance company. Please try again.");
+                setTimeout(() => setMessage(""), 3000);
+                throw new Error();
             }
+
+            setMessageType("success");
+            setMessage("Insurance company deleted successfully!");
+            setCompanies((prev) => prev.filter((c) => (c._id || c.id) !== id));
+            setTimeout(() => setMessage(""), 3000);
         } catch (error) {
-            console.error("Error deleting company", error);
+            console.error("Error deleting company:", error);
+            if (!message) {
+                setMessageType("error");
+                setMessage("Error deleting insurance company.");
+                setTimeout(() => setMessage(""), 3000);
+            }
         }
     };
 
+    if (loading) {
+        return (
+            <div className="flex justify-center items-center py-16">
+                <div className="text-center">
+                    <div className="w-12 h-12 rounded-full border-4 border-emerald-200 border-t-emerald-600 animate-spin mx-auto mb-4"></div>
+                    <p className="text-slate-600 font-medium">Loading insurance companies...</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <div className="p-6 space-y-6">
+        <div className="space-y-6 w-full pt-8 px-6">
+
+            {/* HEADER */}
             <div className="flex justify-between items-center">
-                <h1 className="text-2xl font-bold">Manage Insurance Companies</h1>
-                <Button onClick={() => setShowForm(!showForm)}>
-                    {showForm ? "Cancel" : <><Plus className="mr-2 h-4 w-4" /> Add Company</>}
+                <div>
+                    <h1 className="text-4xl font-bold text-slate-900 mb-2">Manage Insurance Companies</h1>
+                    <p className="text-slate-600">Add, view, and manage all insurance company accounts</p>
+                </div>
+
+                <Button 
+                    onClick={() => {
+                        setShowForm(!showForm);
+                        setMessage("");
+                    }}
+                    className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold px-6 py-3 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 whitespace-nowrap ml-4"
+                >
+                    {showForm ? "Cancel" : (
+                        <>
+                            <Plus className="mr-2 h-5 w-5" />
+                            Add Company
+                        </>
+                    )}
                 </Button>
             </div>
 
+            {/* SUCCESS MESSAGE */}
+            {message && messageType === "success" && (
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-lg p-4 flex gap-3 items-start animate-slide-in-up">
+                    <div className="p-2 bg-green-100 rounded-lg flex-shrink-0">
+                        <CheckCircle2 className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div>
+                        <p className="font-semibold text-green-900">{message}</p>
+                    </div>
+                </div>
+            )}
+
+            {/* ERROR MESSAGE */}
+            {message && messageType === "error" && (
+                <div className="bg-gradient-to-r from-red-50 to-orange-50 border-2 border-red-200 rounded-lg p-4 flex gap-3 items-start animate-slide-in-up">
+                    <div className="p-2 bg-red-100 rounded-lg flex-shrink-0">
+                        <AlertCircle className="h-5 w-5 text-red-600" />
+                    </div>
+                    <div>
+                        <p className="font-semibold text-red-900">{message}</p>
+                    </div>
+                </div>
+            )}
+
+            {/* FORM */}
             {showForm && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Add New Company</CardTitle>
+                <Card className="border-0 shadow-lg bg-white animate-slide-in-up">
+                    <CardHeader className="bg-gradient-to-r from-emerald-50 to-teal-50 border-b border-emerald-100">
+                        <CardTitle className="text-2xl text-slate-900">Add New Insurance Company</CardTitle>
+                        <p className="text-sm text-slate-600 mt-1">Enter company details and create an admin account</p>
                     </CardHeader>
-                    <CardContent>
-                        <form onSubmit={handleCreate} className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Company Name</Label>
-                                    <Input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Contact Info</Label>
-                                    <Input required value={formData.contact_info} onChange={e => setFormData({ ...formData, contact_info: e.target.value })} />
+
+                    <CardContent className="pt-6">
+                        <form onSubmit={handleCreate} className="space-y-6">
+
+                            {/* Company Details */}
+                            <div>
+                                <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                                    <ShieldCheck className="h-5 w-5 text-emerald-600" />
+                                    Company Details
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label className="text-sm font-semibold text-slate-900">Company Name</Label>
+                                        <Input 
+                                            required 
+                                            placeholder="e.g., Global Health Insurance"
+                                            value={form.name}
+                                            onChange={(e) => setForm({ ...form, name: e.target.value })}
+                                            className="border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-sm font-semibold text-slate-900">Contact Information</Label>
+                                        <Input 
+                                            required 
+                                            placeholder="e.g., +1-555-0123 or email@insurance.com"
+                                            value={form.contact_info}
+                                            onChange={(e) => setForm({ ...form, contact_info: e.target.value })}
+                                            className="border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                                        />
+                                    </div>
                                 </div>
                             </div>
 
-                            <div className="border-t pt-4 mt-4">
-                                <h3 className="font-semibold mb-2">Admin Account Details</h3>
-                                <div className="grid grid-cols-2 gap-4">
+                            {/* Divider */}
+                            <div className="h-px bg-gradient-to-r from-emerald-200 to-transparent"></div>
+
+                            {/* Admin Account Details */}
+                            <div>
+                                <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                                    <AlertCircle className="h-5 w-5 text-teal-600" />
+                                    Admin Account Details
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                        <Label>Admin Name</Label>
-                                        <Input required value={formData.admin_name} onChange={e => setFormData({ ...formData, admin_name: e.target.value })} />
+                                        <Label className="text-sm font-semibold text-slate-900">Admin Full Name</Label>
+                                        <Input 
+                                            required 
+                                            placeholder="e.g., Jane Doe"
+                                            value={form.admin_name}
+                                            onChange={(e) => setForm({ ...form, admin_name: e.target.value })}
+                                            className="border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                                        />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label>Username</Label>
-                                        <Input required value={formData.admin_username} onChange={e => setFormData({ ...formData, admin_username: e.target.value })} />
+                                        <Label className="text-sm font-semibold text-slate-900">Username</Label>
+                                        <Input 
+                                            required 
+                                            placeholder="e.g., jdoe"
+                                            value={form.admin_username}
+                                            onChange={(e) => setForm({ ...form, admin_username: e.target.value })}
+                                            className="border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                                        />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label>Password</Label>
-                                        <Input required type="password" value={formData.admin_password} onChange={e => setFormData({ ...formData, admin_password: e.target.value })} />
+                                        <Label className="text-sm font-semibold text-slate-900">Email (Optional)</Label>
+                                        <Input 
+                                            type="email"
+                                            placeholder="e.g., jane@insurance.com"
+                                            value={form.admin_email}
+                                            onChange={(e) => setForm({ ...form, admin_email: e.target.value })}
+                                            className="border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-sm font-semibold text-slate-900">Password</Label>
+                                        <Input 
+                                            required 
+                                            type="password" 
+                                            placeholder="Create a strong password"
+                                            value={form.admin_password}
+                                            onChange={(e) => setForm({ ...form, admin_password: e.target.value })}
+                                            className="border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                                        />
                                     </div>
                                 </div>
                             </div>
 
-                            <Button type="submit" className="w-full">Create Company</Button>
+                            {/* Submit Button */}
+                            <Button 
+                                type="submit" 
+                                disabled={createLoading}
+                                className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold py-3 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50 mt-6"
+                            >
+                                {createLoading ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Creating...
+                                    </>
+                                ) : (
+                                    "Create Company"
+                                )}
+                            </Button>
+
                         </form>
                     </CardContent>
                 </Card>
             )}
 
-            {loading ? (
-                <div className="flex justify-center"><Loader2 className="animate-spin" /></div>
+            {/* LIST */}
+            {companies.length === 0 ? (
+                <div className="bg-gradient-to-br from-blue-50 to-emerald-50 border-2 border-blue-200 rounded-lg p-12 text-center">
+                    <ShieldCheck className="h-12 w-12 text-blue-400 mx-auto mb-4 opacity-50" />
+                    <h3 className="text-lg font-semibold text-slate-900 mb-2">No Insurance Companies Found</h3>
+                    <p className="text-slate-600 mb-6">Get started by adding your first insurance company</p>
+                    <Button 
+                        onClick={() => setShowForm(true)}
+                        className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold px-6 py-2 rounded-lg"
+                    >
+                        <Plus className="mr-2 h-4 w-4" /> Add First Company
+                    </Button>
+                </div>
             ) : (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {companies.map(company => (
-                        <Card key={company.id}>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-lg font-bold">{company.name}</CardTitle>
-                                <Button variant="ghost" size="icon" onClick={() => handleDelete(company.id)} className="text-red-500 hover:text-red-700">
-                                    <Trash2 className="h-4 w-4" />
-                                </Button>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-sm text-gray-500">{company.contact_info}</p>
-                            </CardContent>
-                        </Card>
-                    ))}
-                    {companies.length === 0 && <p className="text-gray-500 col-span-3 text-center py-10">No companies found.</p>}
+                <div className="w-full">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-max">
+                        {companies.map((company, index) => (
+                            <div
+                                key={company._id || company.id}
+                                style={{ animation: `slideInUp 0.6s ease-out ${index * 0.1}s both` }}
+                            >
+                                <Card className="border-0 shadow-md hover:shadow-lg transition-all duration-300 bg-white group h-full">
+                                    <CardHeader className="pb-4">
+                                        <div className="flex justify-between items-start gap-4">
+                                            <div className="flex items-start gap-3 flex-1 min-w-0">
+                                                <div className="p-2 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg shadow-md group-hover:scale-110 transition-transform flex-shrink-0">
+                                                    <ShieldCheck className="h-5 w-5 text-white" />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <CardTitle className="text-lg font-bold text-slate-900 break-words">{company.name}</CardTitle>
+                                                </div>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDelete(company._id || company.id!, company.name)}
+                                                className="p-2 hover:bg-red-50 rounded-lg transition-colors text-red-500 hover:text-red-700 flex-shrink-0"
+                                                title="Delete company"
+                                            >
+                                                <Trash2 className="h-5 w-5" />
+                                            </button>
+                                        </div>
+                                    </CardHeader>
+
+                                    <CardContent>
+                                        <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
+                                            <Phone className="h-4 w-4 text-teal-600 flex-shrink-0 mt-0.5" />
+                                            <p className="text-sm text-slate-700 break-words">{company.contact_info}</p>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             )}
+
+            <style jsx global>{`
+                @keyframes slideInUp {
+                    from {
+                        opacity: 0;
+                        transform: translateY(20px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+            `}</style>
+
         </div>
     );
 }
