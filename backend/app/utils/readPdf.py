@@ -37,7 +37,7 @@ def extract_text_from_file(file_path: str) -> Optional[str]:
                 for i, page in enumerate(reader.pages):
                     logger.info(f"Processing page {i+1} of PDF...")
                     text = page.extract_text()
-                    print(text)
+                    # print(text)
                     if text:
                         extracted_text += f"\n--- Page {i+1} ---\n{text}"
                     else:

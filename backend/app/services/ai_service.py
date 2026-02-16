@@ -2,7 +2,7 @@ import logging
 import json
 from typing import List, Optional
 from app.models.policy import RequiredDocument
-from app.utils.tesseract import extract_text_from_file
+from app.utils.readPdf import extract_text_from_file
 from app.LLM.llm_helper import llm_helper
 
 # Configure logger
@@ -67,7 +67,7 @@ class AIService:
                 
                 # Parse JSON
                 suggestions_data = json.loads(response_text)
-                print(suggestions_data)
+                # print(suggestions_data)
                 suggestions = []
                 for item in suggestions_data:
                     suggestions.append(
