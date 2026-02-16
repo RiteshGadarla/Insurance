@@ -145,7 +145,7 @@ export function Sidebar() {
         >
           <ShieldCheck className="h-5 w-5" />
           <div>
-            <div className="text-lg font-bold">ClaimVerify</div>
+            <div className="text-lg font-bold">InsureGrid</div>
             <div className="text-xs opacity-90">AI Verification</div>
           </div>
         </div>
@@ -203,7 +203,7 @@ export function Sidebar() {
 
           <div className="mt-6 text-xs text-center text-slate-500">
             <span className={cn("font-semibold", theme.accent)}>
-              ClaimVerify AI
+              InsureGrid
             </span>
             <br />
             Verification System v1.0
