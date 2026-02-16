@@ -531,4 +531,4 @@ export default function InsurancePoliciesPage() {
             <PoliciesContent />
         </Suspense>
     );
-}
+} 
