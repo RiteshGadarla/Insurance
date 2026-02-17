@@ -40,7 +40,7 @@ export default function ClaimVerifyLanding() {
 
     const problemsSection = document.getElementById('problems');
     const howWorksSection = document.getElementById('how-works-container');
-    
+
     if (problemsSection) {
       observer.observe(problemsSection);
     }
@@ -209,9 +209,9 @@ export default function ClaimVerifyLanding() {
       <nav className="fixed top-0 w-full bg-white/95 backdrop-blur-sm border-b border-blue-100 px-6 py-4 z-50 animate-slide-in-down shadow-sm">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-teal-500 bg-clip-text text-transparent">
-            ClaimVerify AI
+            InsureGrid
           </div>
-          
+
           <div className="hidden md:flex gap-8 items-center">
             <button onClick={() => scrollToSection('features')} className="text-slate-700 font-medium hover:text-blue-600 transition duration-300 relative group">
               Features
@@ -238,11 +238,11 @@ export default function ClaimVerifyLanding() {
           <h1 className="text-6xl md:text-7xl font-bold mb-8 leading-tight animate-slide-in-up text-slate-900" style={{ animationDelay: '0.2s' }}>
             AI-Powered Insurance Claim <span className="bg-gradient-to-r from-blue-600 via-blue-500 to-teal-500 bg-clip-text text-transparent">Verification System</span>
           </h1>
-          
+
           <p className="text-xl md:text-2xl text-slate-700 mb-12 max-w-2xl mx-auto leading-relaxed animate-slide-in-up" style={{ animationDelay: '0.3s' }}>
             AI-powered claim verification that catches errors early, boosts approvals, and speeds up your revenue cycle.
           </p>
-          
+
           <div className="flex flex-col sm:flex-row gap-4 justify-center animate-slide-in-up" style={{ animationDelay: '0.4s' }}>
             <button onClick={navigateToLogin} className="group relative px-8 py-4 rounded-lg font-semibold text-lg overflow-hidden bg-gradient-to-r from-blue-600 to-teal-500 text-white hover:shadow-xl hover:shadow-blue-600/40 transition transform hover:-translate-y-1 duration-300">
               <span className="relative z-10 flex items-center justify-center gap-2">
@@ -289,10 +289,10 @@ export default function ClaimVerifyLanding() {
             ].map((item, i) => {
               const isLeft = i < 2;
               return (
-                <div 
-                  key={i} 
+                <div
+                  key={i}
                   className={`relative group ${problemsInView ? (isLeft ? 'animate-slide-in-left' : 'animate-slide-in-right') : 'opacity-0'} transition-all duration-1000 ease-out`}
-                  style={{ 
+                  style={{
                     animationDelay: problemsInView ? `${0.15 + (i % 2) * 0.25}s` : '0s',
                     transform: problemsInView ? 'translateX(0)' : (isLeft ? 'translateX(-50px)' : 'translateX(50px)')
                   }}
@@ -492,7 +492,7 @@ export default function ClaimVerifyLanding() {
               animation-play-state: paused;
             }
           `}</style>
-          
+
           <div className="carousel-track">
             {/* First set */}
             {[
