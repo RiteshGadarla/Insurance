@@ -7,7 +7,17 @@
         "dev2": "concurrently \"npm run frontend\" \"npm run backend:linux\"",
         "frontend": "cd frontend && npm run dev",
         "backend": "cd backend && .venv\\Scripts\\python -m uvicorn app.main:app --reload",
-        "backend:linux": "cd backend && .venv/bin/python -m uvicorn app.main:app --reload"
+        "backend:linux": "cd backend && .venv/bin/python -m uvicorn app.main:app --reload",
+        "build": "cd frontend && npm run build",
+        "start": "concurrently \"npm run frontend:start\" \"npm run backend:start\"",
+        "start:linux": "concurrently \"npm run frontend:start\" \"npm run backend:start:linux\"",
+        "frontend:start": "cd frontend && npm run start",
+        "backend:start": "cd backend && .venv\\Scripts\\python -m uvicorn app.main:app --host 0.0.0.0 --port 8000",
+        "backend:start:linux": "cd backend && .venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000",
+        "setup": "npm install && cd frontend && npm install && cd ../backend && .venv\\Scripts\\pip install -r requirements.txt",
+        "setup:linux": "npm install && cd frontend && npm install && cd ../backend && .venv/bin/pip install -r requirements.txt",
+        "venv": "cd backend && python -m venv .venv",
+        "venv:linux": "cd backend && python3 -m venv .venv"
     },
     "devDependencies": {
         "concurrently": "^8.2.0"
